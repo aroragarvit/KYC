@@ -2,6 +2,8 @@ import { Step, Workflow } from '@mastra/core/workflows';
 import { z } from 'zod';
 import axios from 'axios';
 import { documentAnalysisAgent } from '../agents';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Define schemas for input and output data
 const companySchema = z.object({
@@ -178,9 +180,16 @@ const extractDirectorInfo = new Step({
     6. Telephone Number
     7. Email Address
 
+    IMPORTANT INSTRUCTIONS FOR DISCREPANCIES:
+    - For the SAME director, if different documents list DIFFERENT values for the SAME field (e.g., different addresses, different phone numbers), include ALL these different values with their sources.
+    - This is critical for identifying discrepancies in our KYC verification process.
+    - Do not attempt to resolve or merge different values - include ALL values found.
+
     For EACH piece of information, list ALL documents where this information appears, even if it's the same value.
     
-    Return the information as a JSON array with this exact structure:
+    IMPORTANT: Return ONLY a raw JSON array without any markdown formatting, code blocks, or additional text. The response should start with '[' and end with ']'.
+    
+    Use this exact JSON structure:
     [
       {
         "full_name": "Director's Name",
@@ -204,7 +213,8 @@ const extractDirectorInfo = new Step({
             { "documentId": 1, "documentName": "Document Name", "value": "Singapore" }
           ],
           "residential_address": [
-            { "documentId": 3, "documentName": "Document Name", "value": "123 Main St, Singapore" }
+            { "documentId": 3, "documentName": "Document Name", "value": "123 Main St, Singapore" },
+            { "documentId": 5, "documentName": "Different Document", "value": "456 Other St, Singapore" }
           ],
           "telephone_number": [
             { "documentId": 1, "documentName": "Document Name", "value": "+65 1234 5678" }
@@ -219,6 +229,7 @@ const extractDirectorInfo = new Step({
     If multiple documents contain the same field, include all sources.
     If information is missing, use null for that field.
     Always use the exact field names shown above.
+    Remember: Return ONLY the JSON without any surrounding text, markdown, or code blocks.
     `;
 
     // Run the agent
@@ -233,7 +244,18 @@ const extractDirectorInfo = new Step({
 
     // Parse the response
     try {
-      const parsedResponse = JSON.parse(resultText);
+      // Check for and remove any markdown code block markers that might be present
+      let cleanedText = resultText.replace(/```(json)?\s*|\s*```/g, '').trim();
+      
+      // Ensure it starts with [ and ends with ]
+      if (!cleanedText.startsWith('[')) {
+        cleanedText = cleanedText.substring(cleanedText.indexOf('['));
+      }
+      if (!cleanedText.endsWith(']')) {
+        cleanedText = cleanedText.substring(0, cleanedText.lastIndexOf(']') + 1);
+      }
+      
+      const parsedResponse = JSON.parse(cleanedText);
       if (!Array.isArray(parsedResponse)) {
         throw new Error('Response is not an array');
       }
@@ -275,41 +297,119 @@ const storeDirectorInfo = new Step({
     }
 
     try {
-      // Store director information for the company
-      const response = await axios.post(`http://localhost:3000/companies/${companyName}/directors`, {
-        company_id: null, // Will be assigned by the API based on company name
-        full_name: directorInfo[0]?.full_name || null,
-        id_number: directorInfo[0]?.id_number || null,
-        id_type: directorInfo[0]?.id_type || null,
-        nationality: directorInfo[0]?.nationality || null,
-        residential_address: directorInfo[0]?.residential_address || null,
-        telephone_number: directorInfo[0]?.telephone_number || null,
-        email_address: directorInfo[0]?.email_address || null,
-        full_name_source: JSON.stringify(directorInfo[0]?.sources?.full_name || []),
-        id_number_source: JSON.stringify(directorInfo[0]?.sources?.id_number || []),
-        id_type_source: JSON.stringify(directorInfo[0]?.sources?.id_type || []),
-        nationality_source: JSON.stringify(directorInfo[0]?.sources?.nationality || []),
-        residential_address_source: JSON.stringify(directorInfo[0]?.sources?.residential_address || []),
-        telephone_number_source: JSON.stringify(directorInfo[0]?.sources?.telephone_number || []),
-        email_address_source: JSON.stringify(directorInfo[0]?.sources?.email_address || []),
-        discrepancies: ""
-      });
+      // Store all director information for the company
+      const successfulDirectors = [];
+      const failedDirectors = [];
 
-      return {
-        company: companyName,
-        directors: directorInfo,
-        extraction_status: 'SUCCESS' as const,
-        message: `Successfully extracted and stored information for ${directorInfo.length} directors`
-      };
+      for (const director of directorInfo) {
+        try {
+          // Analyze and detect discrepancies for this director
+          const discrepancies = [];
+          
+          // Define a source type interface
+          interface SourceInfo {
+            documentId: number;
+            documentName: string;
+            value: string;
+          }
+
+          // Check for discrepancies in each field
+          const fieldsToCheck = [
+            {name: 'full_name', label: 'Full Name'},
+            {name: 'id_number', label: 'ID Number'},
+            {name: 'id_type', label: 'ID Type'},
+            {name: 'nationality', label: 'Nationality'},
+            {name: 'residential_address', label: 'Residential Address'},
+            {name: 'telephone_number', label: 'Telephone Number'},
+            {name: 'email_address', label: 'Email Address'}
+          ];
+          
+          for (const field of fieldsToCheck) {
+            const sources = director.sources[field.name as keyof typeof director.sources];
+            if (sources && sources.length > 1) {
+              // Extract unique values from sources
+              const uniqueValues = new Map();
+              
+              for (const source of sources) {
+                if (!uniqueValues.has(source.value)) {
+                  uniqueValues.set(source.value, [source]);
+                } else {
+                  uniqueValues.get(source.value).push(source);
+                }
+              }
+              
+              // If we have more than one unique value, we have a discrepancy
+              if (uniqueValues.size > 1) {
+                const discrepancyValues = [];
+                for (const [value, valueSources] of uniqueValues.entries()) {
+                  discrepancyValues.push({
+                    value,
+                    sources: valueSources.map((s: SourceInfo) => `${s.documentName} (ID: ${s.documentId})`)
+                  });
+                }
+                
+                discrepancies.push({
+                  field: field.label,
+                  values: discrepancyValues,
+                  recommendation: `Please verify the correct ${field.label.toLowerCase()} for this director.`
+                });
+              }
+            }
+          }
+          
+          // Store each director with discrepancies information
+          await axios.post(`http://localhost:3000/companies/${companyName}/directors`, {
+            company_id: null, // Will be assigned by the API based on company name
+            full_name: director?.full_name || null,
+            id_number: director?.id_number || null,
+            id_type: director?.id_type || null,
+            nationality: director?.nationality || null,
+            residential_address: director?.residential_address || null,
+            telephone_number: director?.telephone_number || null,
+            email_address: director?.email_address || null,
+            full_name_source: JSON.stringify(director?.sources?.full_name || []),
+            id_number_source: JSON.stringify(director?.sources?.id_number || []),
+            id_type_source: JSON.stringify(director?.sources?.id_type || []),
+            nationality_source: JSON.stringify(director?.sources?.nationality || []),
+            residential_address_source: JSON.stringify(director?.sources?.residential_address || []),
+            telephone_number_source: JSON.stringify(director?.sources?.telephone_number || []),
+            email_address_source: JSON.stringify(director?.sources?.email_address || []),
+            discrepancies: JSON.stringify(discrepancies)
+          });
+          
+          successfulDirectors.push({...director, discrepancies});
+          console.log(`Successfully stored director: ${director?.full_name || 'Unknown'}`);
+          if (discrepancies.length > 0) {
+            console.log(`Found ${discrepancies.length} discrepancies for ${director?.full_name || 'Unknown'}`);
+          }
+        } catch (directorError) {
+          console.error(`Error storing director ${director?.full_name || 'Unknown'}:`, directorError);
+          failedDirectors.push(director);
+        }
+      }
+
+      if (failedDirectors.length === 0) {
+        return {
+          company: companyName,
+          directors: directorInfo,
+          extraction_status: 'SUCCESS' as const,
+          message: `Successfully extracted and stored information for all ${directorInfo.length} directors`
+        };
+      } else if (successfulDirectors.length > 0) {
+        return {
+          company: companyName,
+          directors: directorInfo,
+          extraction_status: 'PARTIAL' as const,
+          message: `Extracted information for ${directorInfo.length} directors, but only stored ${successfulDirectors.length} successfully`
+        };
+      } else {
+        throw new Error('Failed to store any director information');
+      }
     } catch (error) {
       console.error('Error storing director information:', error);
       
-      // If API call fails, use in-memory storage (filesystem approach)
+      // If API calls fail, use in-memory storage (filesystem approach)
       try {
-        // Using Node.js fs module to write to a JSON file
-        const fs = require('fs');
-        const path = require('path');
-        
         // Ensure the directory exists
         const dataDir = path.join(process.cwd(), 'data');
         if (!fs.existsSync(dataDir)) {

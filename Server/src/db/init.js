@@ -60,7 +60,8 @@ function initializeDatabase() {
         telephone_number_source TEXT,
         email_address_source TEXT,
         discrepancies TEXT,
-        FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE
+        FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE,
+        UNIQUE(company_id, full_name)
       );
     `);
 
