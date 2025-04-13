@@ -10,6 +10,7 @@ function initializeDatabase() {
     // Drop existing tables if they exist
     db.exec(`DROP TABLE IF EXISTS company_documents`);
     db.exec(`DROP TABLE IF EXISTS documents`);
+    db.exec(`DROP TABLE IF EXISTS directors`);
     db.exec(`DROP TABLE IF EXISTS companies`);
 
     // Create tables with proper IDs
@@ -36,6 +37,30 @@ function initializeDatabase() {
         FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE,
         FOREIGN KEY (document_id) REFERENCES documents (id) ON DELETE CASCADE,
         UNIQUE(company_id, document_id)
+      );
+    `);
+
+    // Create directors table for storing extracted information
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS directors (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        company_id INTEGER NOT NULL,
+        full_name TEXT,
+        id_number TEXT,
+        id_type TEXT,
+        nationality TEXT,
+        residential_address TEXT,
+        telephone_number TEXT,
+        email_address TEXT,
+        full_name_source TEXT,
+        id_number_source TEXT,
+        id_type_source TEXT,
+        nationality_source TEXT,
+        residential_address_source TEXT,
+        telephone_number_source TEXT,
+        email_address_source TEXT,
+        discrepancies TEXT,
+        FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE
       );
     `);
 

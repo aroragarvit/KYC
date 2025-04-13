@@ -165,6 +165,117 @@ async function documentRoutes(fastify, options) {
         .send({ error: "Internal Server Error", message: err.message });
     }
   });
+
+  // Get all directors for a company
+  fastify.get("/companies/:name/directors", async (request, reply) => {
+    try {
+      const { name } = request.params;
+
+      // Check if company exists
+      const company = fastify.db
+        .prepare("SELECT id, name FROM companies WHERE name = ?")
+        .get(name);
+      if (!company) {
+        reply.code(404).send({ error: "Company not found" });
+        return;
+      }
+
+      // Get all directors for the company
+      const directors = fastify.db
+        .prepare("SELECT * FROM directors WHERE company_id = ?")
+        .all(company.id);
+
+      return { company, directors };
+    } catch (err) {
+      request.log.error(err);
+      reply
+        .code(500)
+        .send({ error: "Internal Server Error", message: err.message });
+    }
+  });
+
+  // Save director information
+  fastify.post("/companies/:name/directors", async (request, reply) => {
+    try {
+      const { name } = request.params;
+      const directorData = request.body;
+
+      if (!directorData) {
+        reply.code(400).send({ error: "Director data is required" });
+        return;
+      }
+
+      // Check if company exists
+      const company = fastify.db
+        .prepare("SELECT id, name FROM companies WHERE name = ?")
+        .get(name);
+      if (!company) {
+        reply.code(404).send({ error: "Company not found" });
+        return;
+      }
+
+      // Insert or update director information
+      const stmt = fastify.db.prepare(`
+        INSERT INTO directors (
+          company_id, full_name, id_number, id_type, nationality, 
+          residential_address, telephone_number, email_address,
+          full_name_source, id_number_source, id_type_source, nationality_source,
+          residential_address_source, telephone_number_source, email_address_source,
+          discrepancies
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (company_id, full_name) 
+        DO UPDATE SET 
+          id_number = excluded.id_number,
+          id_type = excluded.id_type,
+          nationality = excluded.nationality,
+          residential_address = excluded.residential_address,
+          telephone_number = excluded.telephone_number,
+          email_address = excluded.email_address,
+          full_name_source = excluded.full_name_source,
+          id_number_source = excluded.id_number_source,
+          id_type_source = excluded.id_type_source,
+          nationality_source = excluded.nationality_source,
+          residential_address_source = excluded.residential_address_source,
+          telephone_number_source = excluded.telephone_number_source,
+          email_address_source = excluded.email_address_source,
+          discrepancies = excluded.discrepancies
+        RETURNING id
+      `);
+
+      const result = stmt.get(
+        company.id,
+        directorData.full_name,
+        directorData.id_number,
+        directorData.id_type,
+        directorData.nationality,
+        directorData.residential_address,
+        directorData.telephone_number,
+        directorData.email_address,
+        directorData.full_name_source,
+        directorData.id_number_source,
+        directorData.id_type_source,
+        directorData.nationality_source,
+        directorData.residential_address_source,
+        directorData.telephone_number_source,
+        directorData.email_address_source,
+        directorData.discrepancies
+      );
+
+      const director = fastify.db
+        .prepare("SELECT * FROM directors WHERE id = ?")
+        .get(result.id);
+
+      return { 
+        message: "Director information saved successfully", 
+        director 
+      };
+    } catch (err) {
+      request.log.error(err);
+      reply
+        .code(500)
+        .send({ error: "Internal Server Error", message: err.message });
+    }
+  });
 }
 
 module.exports = documentRoutes;
