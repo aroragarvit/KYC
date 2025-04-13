@@ -8,8 +8,4 @@ import { directorVerificationWorkflow } from './workflows/director_verification'
 export const mastra = new Mastra({
   workflows: { weatherWorkflow, directorVerificationWorkflow, directorExtractionWorkflow },
   agents: { weatherAgent },
-  logger: createLogger({
-    name: 'Mastra',
-    level: 'info',
-  }),
 });

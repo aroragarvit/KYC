@@ -166,8 +166,14 @@ const extractDirectorInfo = new Step({
       prompt += `DOCUMENT ${index + 1}: ${doc.document.name} (ID: ${doc.document.id})\n`;
       prompt += `Document Type: ${categorizeDocumentType(doc.document.name)}\n`;
       
-      // Include full content for each document
-      prompt += `Content:\n${doc.content}\n\n`;
+      // For large documents, truncate content to avoid token limits
+      let content = doc.content;
+      if (content.length > 3000) {
+        content = content.substring(0, 3000) + "... [content truncated]";
+      }
+      
+      // Include content for each document
+      prompt += `Content:\n${content}\n\n`;
       prompt += `---------- END OF DOCUMENT ${index + 1} ----------\n\n`;
     });
     
@@ -223,8 +229,10 @@ const extractDirectorInfo = new Step({
       }
     ]
     
-    IMPORTANT: Include ALL variations found across documents in the appropriate sources arrays.
-    Return ONLY the raw JSON array without any markdown formatting, code blocks, or explanations.
+    IMPORTANT: 
+    - Include ALL variations found across documents in the appropriate sources arrays.
+    - Return ONLY the raw JSON array. Do not include any explanations, markdown, or code blocks.
+    - Your response should start with "[" and end with "]".
     `;
     
     try {
@@ -234,33 +242,34 @@ const extractDirectorInfo = new Step({
       ]);
       
       let resultText = '';
-      for await (const chunk of response.textStream) {
-        resultText += chunk;
+      try {
+        for await (const chunk of response.textStream) {
+          resultText += chunk;
+        }
+      } catch (streamError) {
+        console.warn("Stream error encountered but continuing with parsing:", 
+          typeof streamError === 'object' && streamError !== null ? String(streamError) : 'Unknown error');
       }
       
       console.log("Received response, parsing...");
       
       // Clean up the response text and extract the JSON
-      let jsonText = '';
+      let jsonText = resultText.trim();
       
-      // Try to find JSON content between brackets
-      const jsonMatch = resultText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-      if (jsonMatch) {
-        jsonText = jsonMatch[0];
-      } else {
-        // Remove markdown formatting if present
-        jsonText = resultText.replace(/```json|```/g, '').trim();
-        
-        // Find start and end of JSON array
-        const startIdx = jsonText.indexOf('[');
-        const endIdx = jsonText.lastIndexOf(']');
-        
-        if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-          jsonText = jsonText.substring(startIdx, endIdx + 1);
-        } else {
-          throw new Error('Failed to extract valid JSON from response');
-        }
+      // Remove any non-JSON prefix/suffix content
+      const startIdx = jsonText.indexOf('[');
+      const endIdx = jsonText.lastIndexOf(']');
+      
+      if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
+        console.error("Could not find valid JSON array markers in response");
+        console.log("Response text:", jsonText.substring(0, 200) + "...");
+        throw new Error('Could not locate JSON array in response');
       }
+      
+      jsonText = jsonText.substring(startIdx, endIdx + 1);
+      
+      // Remove any markdown code block markers
+      jsonText = jsonText.replace(/```(json)?|```/g, '').trim();
       
       try {
         // Parse the JSON
@@ -280,7 +289,7 @@ const extractDirectorInfo = new Step({
             if (director.id_type && 
                 (!director.sources.id_type || 
                  director.sources.id_type.length === 0 || 
-                 director.sources.id_type.every(s => s.value === "Other ID" || s.value === "Unknown"))) {
+                 director.sources.id_type.every((s: {value: string}) => s.value === "Other ID" || s.value === "Unknown"))) {
               director.sources.id_type = [{
                 documentId: 0,
                 documentName: "Inferred from ID format",
@@ -309,13 +318,42 @@ const extractDirectorInfo = new Step({
         
         console.log(`Successfully extracted information for ${processedDirectors.length} directors`);
         return processedDirectors;
-      } catch (parseError) {
-        console.error('Error parsing JSON:', parseError);
-        throw new Error(`Failed to parse director information: ${parseError.message}`);
+      } catch (parseError: unknown) {
+        console.error('Error parsing JSON');
+        if (parseError instanceof Error) {
+          console.error('Error details:', parseError.message);
+        }
+        throw new Error(`Failed to parse director information`);
       }
-    } catch (error) {
-      console.error('Error extracting director information:', error);
-      throw new Error(`Failed to extract director information: ${error.message}`);
+    } catch (error: unknown) {
+      console.error('Error extracting director information');
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+      }
+      
+      // Fallback: return a minimal director structure to prevent workflow failure
+      return [{
+        full_name: "Error extracting directors",
+        id_number: null,
+        id_type: null,
+        nationality: null,
+        residential_address: null,
+        telephone_number: null,
+        email_address: null,
+        sources: {
+          full_name: [{
+            documentId: 0,
+            documentName: "Error",
+            value: "Failed to extract directors from documents"
+          }],
+          id_number: [],
+          id_type: [],
+          nationality: [],
+          residential_address: [],
+          telephone_number: [],
+          email_address: []
+        }
+      }];
     }
   },
 });
@@ -430,8 +468,11 @@ const storeDirectorInfo = new Step({
               console.log(`- ${d.field}: ${d.values.join(', ')}`);
             });
           }
-        } catch (directorError) {
-          console.error(`Error storing director ${director?.full_name || 'Unknown'}:`, directorError);
+        } catch (directorError: unknown) {
+          console.error(`Error storing director ${director?.full_name || 'Unknown'}`);
+          if (directorError instanceof Error) {
+            console.error(`Error details: ${directorError.message}`);
+          }
           failedDirectors.push(director);
         }
       }
@@ -453,42 +494,19 @@ const storeDirectorInfo = new Step({
       } else {
         throw new Error('Failed to store any director information');
       }
-    } catch (error) {
-      console.error('Error storing director information:', error);
-      
-      // If API calls fail, use in-memory storage (filesystem approach)
-      try {
-        // Ensure the directory exists
-        const dataDir = path.join(process.cwd(), 'data');
-        if (!fs.existsSync(dataDir)) {
-          fs.mkdirSync(dataDir, { recursive: true });
-        }
-        
-        // Write data to file
-        const filePath = path.join(dataDir, `${companyName.toLowerCase()}_directors.json`);
-        fs.writeFileSync(filePath, JSON.stringify({
-          company: companyName,
-          directors: directorInfo,
-          timestamp: new Date().toISOString()
-        }, null, 2));
-        
-        return {
-          company: companyName,
-          directors: directorInfo,
-          extraction_status: 'SUCCESS' as const,
-          message: `Successfully extracted and stored information for ${directorInfo.length} directors (local storage fallback)`
-        };
-      } catch (fsError: unknown) {
-        console.error('Error with fallback storage:', fsError);
-        return {
-          company: companyName,
-          directors: directorInfo,
-          extraction_status: 'PARTIAL' as const,
-          message: `Extracted director information but failed to store permanently: ${
-            (fsError instanceof Error) ? fsError.message : 'Unknown error'
-          }`
-        };
+    } catch (error: unknown) {
+      console.error('Error storing director information');
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
       }
+      return {
+        company: companyName,
+        directors: directorInfo,
+        extraction_status: 'PARTIAL' as const,
+        message: `Extracted director information but failed to store permanently: ${
+          (error instanceof Error) ? error.message : 'Unknown error'
+        }`
+      };
     }
   },
 });
