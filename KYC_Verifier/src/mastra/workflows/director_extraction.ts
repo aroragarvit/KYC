@@ -144,7 +144,7 @@ const readDocumentContents = new Step({
   },
 });
 
-// Step 3: Extract director information
+// Simplified Step 3: Extract director information with direct consolidation
 const extractDirectorInfo = new Step({
   id: 'extract-director-info',
   description: 'Extracts director information from document contents',
@@ -156,124 +156,166 @@ const extractDirectorInfo = new Step({
       throw new Error('No document contents found');
     }
 
-    // Prepare prompt for the agent
-    let prompt = `I need to extract director information from the following company documents.\n\n`;
+    console.log(`Processing ${documentContents.length} documents to extract director information...`);
     
-    // Include document contents in the prompt
+    // Prepare a single comprehensive prompt with all document contents
+    let prompt = `I need to extract complete director information from the following company documents, identifying ALL variations and discrepancies across documents.\n\n`;
+    
+    // Include all document contents in the prompt
     documentContents.forEach((doc, index) => {
-      prompt += `Document ${index + 1}: ${doc.document.name} (ID: ${doc.document.id})\n`;
-      // Truncate content if too long to fit in prompt
-      const contentPreview = doc.content.length > 800 
-        ? doc.content.substring(0, 800) + '... (content truncated)'
-        : doc.content;
-      prompt += `Content: ${contentPreview}\n\n`;
+      prompt += `DOCUMENT ${index + 1}: ${doc.document.name} (ID: ${doc.document.id})\n`;
+      prompt += `Document Type: ${categorizeDocumentType(doc.document.name)}\n`;
+      
+      // Include full content for each document
+      prompt += `Content:\n${doc.content}\n\n`;
+      prompt += `---------- END OF DOCUMENT ${index + 1} ----------\n\n`;
     });
-
-    // Add formatting instructions
+    
+    // Add comprehensive extraction instructions
     prompt += `
-    Extract all director information from these documents. For each director, provide:
-    1. Full Name
-    2. ID Number
-    3. ID Type (Passport, NRIC, etc.)
-    4. Nationality
-    5. Residential Address
-    6. Telephone Number
-    7. Email Address
-
-    IMPORTANT INSTRUCTIONS FOR DISCREPANCIES:
-    - For the SAME director, if different documents list DIFFERENT values for the SAME field (e.g., different addresses, different phone numbers), include ALL these different values with their sources.
-    - This is critical for identifying discrepancies in our KYC verification process.
-    - Do not attempt to resolve or merge different values - include ALL values found.
-
-    For EACH piece of information, list ALL documents where this information appears, even if it's the same value.
+    Your task is to identify ALL directors mentioned across these documents and extract their complete information, including ALL variations and discrepancies.
     
-    IMPORTANT: Return ONLY a raw JSON array without any markdown formatting, code blocks, or additional text. The response should start with '[' and end with ']'.
+    EXTRACTION REQUIREMENTS:
+    1. Identify ALL directors mentioned in ANY document
+    2. For each director, extract:
+       - Full Name (including ALL variations: formal names, nicknames, etc.)
+       - ALL ID Numbers found across documents (passport numbers, NRIC, etc.)
+       - ID Types (passport, NRIC, etc. - based on ID format and context)
+       - Nationality (including ALL variations)
+       - ALL Residential Addresses found across documents
+       - ALL Telephone Numbers found across documents
+       - ALL Email Addresses found across documents
     
-    Use this exact JSON structure:
+    CRITICAL RULES:
+    - SAME PERSON, DIFFERENT NAMES: A person may appear with different names (e.g., "John Doe" vs "Johnathan Doe")
+    - SAME PERSON, MULTIPLE ID NUMBERS: A person may have different ID numbers across documents
+    - MULTIPLE ADDRESSES: Include ALL addresses a person might have across documents
+    - NEVER miss ANY discrepancy or variation in ANY field
+    - Determine the correct ID type based on format:
+       * Singapore NRIC: Starts with S/T/F/G/M + 7 digits + letter (e.g., S1234567A)
+       * Passport: Often starts with letter(s) + numbers (e.g., P0987654B, X1234567)
+    
+    Format the results as a JSON array with each object representing a director:
     [
       {
-        "full_name": "Director's Name",
-        "id_number": "ID123456",
-        "id_type": "Passport",
-        "nationality": "Singapore",
-        "residential_address": "123 Main St, Singapore",
-        "telephone_number": "+65 1234 5678",
-        "email_address": "director@example.com",
+        "full_name": "Most formal/complete version of name",
+        "id_number": "Most official ID number",
+        "id_type": "Most appropriate ID type (NEVER use generic terms if specific type can be determined)",
+        "nationality": "Primary nationality",
+        "residential_address": "Primary address",
+        "telephone_number": "Primary phone number",
+        "email_address": "Primary email address",
         "sources": {
           "full_name": [
-            { "documentId": 1, "documentName": "Document Name", "value": "Director's Name" }
+            {"documentId": 1, "documentName": "Doc Name", "value": "Name as appears in this document"},
+            {"documentId": 3, "documentName": "Another Doc", "value": "Different name found in this document"}
           ],
           "id_number": [
-            { "documentId": 2, "documentName": "Document Name", "value": "ID123456" }
+            {"documentId": 2, "documentName": "Doc Name", "value": "ID123456"},
+            {"documentId": 4, "documentName": "Another Doc", "value": "Different ID number"}
           ],
-          "id_type": [
-            { "documentId": 2, "documentName": "Document Name", "value": "Passport" }
-          ],
-          "nationality": [
-            { "documentId": 1, "documentName": "Document Name", "value": "Singapore" }
-          ],
-          "residential_address": [
-            { "documentId": 3, "documentName": "Document Name", "value": "123 Main St, Singapore" },
-            { "documentId": 5, "documentName": "Different Document", "value": "456 Other St, Singapore" }
-          ],
-          "telephone_number": [
-            { "documentId": 1, "documentName": "Document Name", "value": "+65 1234 5678" }
-          ],
-          "email_address": [
-            { "documentId": 1, "documentName": "Document Name", "value": "director@example.com" }
-          ]
+          "id_type": [ ... ],
+          "nationality": [ ... ],
+          "residential_address": [ ... ],
+          "telephone_number": [ ... ],
+          "email_address": [ ... ]
         }
       }
     ]
     
-    If multiple documents contain the same field, include all sources.
-    If information is missing, use null for that field.
-    Always use the exact field names shown above.
-    Remember: Return ONLY the JSON without any surrounding text, markdown, or code blocks.
+    IMPORTANT: Include ALL variations found across documents in the appropriate sources arrays.
+    Return ONLY the raw JSON array without any markdown formatting, code blocks, or explanations.
     `;
-
-    // Run the agent
-    const response = await documentAnalysisAgent.stream([
-      { role: 'user', content: prompt }
-    ]);
-
-    let resultText = '';
-    for await (const chunk of response.textStream) {
-      resultText += chunk;
-    }
-
-    // Parse the response
+    
     try {
-      // Check for and remove any markdown code block markers that might be present
-      let cleanedText = resultText.replace(/```(json)?\s*|\s*```/g, '').trim();
+      console.log("Sending prompt to extract director information...");
+      const response = await documentAnalysisAgent.stream([
+        { role: 'user', content: prompt }
+      ]);
       
-      // Ensure it starts with [ and ends with ]
-      if (!cleanedText.startsWith('[')) {
-        cleanedText = cleanedText.substring(cleanedText.indexOf('['));
-      }
-      if (!cleanedText.endsWith(']')) {
-        cleanedText = cleanedText.substring(0, cleanedText.lastIndexOf(']') + 1);
+      let resultText = '';
+      for await (const chunk of response.textStream) {
+        resultText += chunk;
       }
       
-      const parsedResponse = JSON.parse(cleanedText);
-      if (!Array.isArray(parsedResponse)) {
-        throw new Error('Response is not an array');
-      }
-      return parsedResponse;
-    } catch (error) {
-      console.error('Error parsing document analysis response:', error);
-      // Try to extract JSON from text response
-      const jsonRegex = /\[[\s\S]*\]/g;
-      const match = resultText.match(jsonRegex);
-      if (match) {
-        try {
-          const extracted = JSON.parse(match[0]);
-          return extracted;
-        } catch (e) {
-          throw new Error('Failed to parse director information from response');
+      console.log("Received response, parsing...");
+      
+      // Clean up the response text and extract the JSON
+      let jsonText = '';
+      
+      // Try to find JSON content between brackets
+      const jsonMatch = resultText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (jsonMatch) {
+        jsonText = jsonMatch[0];
+      } else {
+        // Remove markdown formatting if present
+        jsonText = resultText.replace(/```json|```/g, '').trim();
+        
+        // Find start and end of JSON array
+        const startIdx = jsonText.indexOf('[');
+        const endIdx = jsonText.lastIndexOf(']');
+        
+        if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+          jsonText = jsonText.substring(startIdx, endIdx + 1);
+        } else {
+          throw new Error('Failed to extract valid JSON from response');
         }
       }
-      throw new Error('Failed to extract director information');
+      
+      try {
+        // Parse the JSON
+        const parsedDirectors = JSON.parse(jsonText);
+        
+        if (!Array.isArray(parsedDirectors)) {
+          throw new Error('Parsed result is not an array');
+        }
+        
+        // Post-process to ensure correct ID types and standardize fields
+        const processedDirectors = parsedDirectors.map(director => {
+          // Infer ID type from format if not specified or "Other ID"
+          if (director.id_number && (!director.id_type || director.id_type === "Unknown" || director.id_type === "Other ID")) {
+            director.id_type = inferIdTypeFromNumber(director.id_number, director.nationality);
+            
+            // Add inferred ID type to sources if not already present
+            if (director.id_type && 
+                (!director.sources.id_type || 
+                 director.sources.id_type.length === 0 || 
+                 director.sources.id_type.every(s => s.value === "Other ID" || s.value === "Unknown"))) {
+              director.sources.id_type = [{
+                documentId: 0,
+                documentName: "Inferred from ID format",
+                value: director.id_type
+              }];
+            }
+          }
+          
+          // Standardize nationality
+          if (director.nationality === "Singaporean") {
+            director.nationality = "Singapore";
+          } else if (director.nationality === "American") {
+            director.nationality = "USA";
+          }
+          
+          // Ensure all source arrays exist
+          ['full_name', 'id_number', 'id_type', 'nationality', 
+           'residential_address', 'telephone_number', 'email_address'].forEach(field => {
+            if (!director.sources[field]) {
+              director.sources[field] = [];
+            }
+          });
+          
+          return director;
+        });
+        
+        console.log(`Successfully extracted information for ${processedDirectors.length} directors`);
+        return processedDirectors;
+      } catch (parseError) {
+        console.error('Error parsing JSON:', parseError);
+        throw new Error(`Failed to parse director information: ${parseError.message}`);
+      }
+    } catch (error) {
+      console.error('Error extracting director information:', error);
+      throw new Error(`Failed to extract director information: ${error.message}`);
     }
   },
 });
@@ -286,6 +328,7 @@ const storeDirectorInfo = new Step({
   outputSchema: extractionResultSchema,
   execute: async ({ context }) => {
     const directorInfo = context?.getStepResult(extractDirectorInfo);
+    console.log("Director Info is", directorInfo);
     const companyName = context?.getStepResult<{ name: string }>('trigger')?.name;
     
     if (!directorInfo || directorInfo.length === 0) {
@@ -303,69 +346,50 @@ const storeDirectorInfo = new Step({
 
       for (const director of directorInfo) {
         try {
-          // Analyze and detect discrepancies for this director
-          const discrepancies = [];
-          
-          // Define a source type interface
-          interface SourceInfo {
-            documentId: number;
-            documentName: string;
-            value: string;
-          }
-
-          // Extract all unique values for each field
+          // Extract all values (including duplicates) for each field
           const allFieldValues: Record<string, string[]> = {};
           
-          // Check for discrepancies in each field
-          const fieldsToCheck = [
-            {name: 'full_name', label: 'Full Name'},
-            {name: 'id_number', label: 'ID Number'},
-            {name: 'id_type', label: 'ID Type'},
-            {name: 'nationality', label: 'Nationality'},
-            {name: 'residential_address', label: 'Residential Address'},
-            {name: 'telephone_number', label: 'Telephone Number'},
-            {name: 'email_address', label: 'Email Address'}
+          // Fields to process
+          const fieldsToProcess = [
+            'full_name',
+            'id_number',
+            'id_type',
+            'nationality',
+            'residential_address',
+            'telephone_number',
+            'email_address'
           ];
           
-          for (const field of fieldsToCheck) {
-            const sources = director.sources[field.name as keyof typeof director.sources];
+          // For each field, extract all values from all sources
+          for (const field of fieldsToProcess) {
+            const sources = director.sources[field as keyof typeof director.sources];
             // Initialize the array for this field
-            allFieldValues[field.name] = [];
+            allFieldValues[field] = [];
             
             if (sources && sources.length > 0) {
-              // Extract unique values from sources
-              const uniqueValues = new Map();
-              
-              for (const source of sources) {
-                if (!uniqueValues.has(source.value)) {
-                  uniqueValues.set(source.value, [source]);
-                  // Add to allFieldValues array
-                  allFieldValues[field.name].push(source.value);
-                } else {
-                  uniqueValues.get(source.value).push(source);
+              // Extract all values from sources
+              sources.forEach(source => {
+                if (source && source.value) {
+                  allFieldValues[field].push(source.value);
                 }
-              }
-              
-              // If we have more than one unique value, we have a discrepancy
-              if (uniqueValues.size > 1) {
-                const discrepancyValues = [];
-                for (const [value, valueSources] of uniqueValues.entries()) {
-                  discrepancyValues.push({
-                    value,
-                    sources: valueSources.map((s: SourceInfo) => `${s.documentName} (ID: ${s.documentId})`)
-                  });
-                }
-                
-                discrepancies.push({
-                  field: field.label,
-                  values: discrepancyValues,
-                  recommendation: `Please verify the correct ${field.label.toLowerCase()} for this director.`
-                });
-              }
+              });
             }
           }
           
-          // Store each director with all values and discrepancies information
+          // Identify discrepancies - fields with multiple distinct values
+          const discrepancies = [];
+          for (const field of fieldsToProcess) {
+            // Get unique values
+            const uniqueValues = [...new Set(allFieldValues[field])];
+            if (uniqueValues.length > 1) {
+              discrepancies.push({
+                field,
+                values: uniqueValues
+              });
+            }
+          }
+          
+          // Store each director with all values from all sources
           await axios.post(`http://localhost:3000/companies/${companyName}/directors`, {
             company_id: null, // Will be assigned by the API based on company name
             // Main fields use the first value found (or null if not found)
@@ -376,7 +400,7 @@ const storeDirectorInfo = new Step({
             residential_address: director?.residential_address || null,
             telephone_number: director?.telephone_number || null,
             email_address: director?.email_address || null,
-            // Store sources as before
+            // Store all sources
             full_name_source: JSON.stringify(director?.sources?.full_name || []),
             id_number_source: JSON.stringify(director?.sources?.id_number || []),
             id_type_source: JSON.stringify(director?.sources?.id_type || []),
@@ -384,7 +408,7 @@ const storeDirectorInfo = new Step({
             residential_address_source: JSON.stringify(director?.sources?.residential_address || []),
             telephone_number_source: JSON.stringify(director?.sources?.telephone_number || []),
             email_address_source: JSON.stringify(director?.sources?.email_address || []),
-            // Store all values as arrays
+            // Store all values as arrays (including duplicates)
             full_name_values: JSON.stringify(allFieldValues.full_name || []),
             id_number_values: JSON.stringify(allFieldValues.id_number || []),
             id_type_values: JSON.stringify(allFieldValues.id_type || []),
@@ -392,14 +416,19 @@ const storeDirectorInfo = new Step({
             residential_address_values: JSON.stringify(allFieldValues.residential_address || []),
             telephone_number_values: JSON.stringify(allFieldValues.telephone_number || []),
             email_address_values: JSON.stringify(allFieldValues.email_address || []),
-            // Store discrepancies as before
+            // Store identified discrepancies
             discrepancies: JSON.stringify(discrepancies)
           });
           
-          successfulDirectors.push({...director, discrepancies, allFieldValues});
+          successfulDirectors.push({...director, allFieldValues, discrepancies});
           console.log(`Successfully stored director: ${director?.full_name || 'Unknown'}`);
+          
+          // Log all discrepancies for debugging
           if (discrepancies.length > 0) {
-            console.log(`Found ${discrepancies.length} discrepancies for ${director?.full_name || 'Unknown'}`);
+            console.log(`Found ${discrepancies.length} discrepancies for ${director?.full_name || 'Unknown'}:`);
+            discrepancies.forEach(d => {
+              console.log(`- ${d.field}: ${d.values.join(', ')}`);
+            });
           }
         } catch (directorError) {
           console.error(`Error storing director ${director?.full_name || 'Unknown'}:`, directorError);
@@ -464,6 +493,49 @@ const storeDirectorInfo = new Step({
   },
 });
 
+// Helper function to categorize document type
+function categorizeDocumentType(documentName: string) {
+  const lowerName = documentName.toLowerCase();
+  
+  if (lowerName.includes('passport')) return 'Passport Document';
+  if (lowerName.includes('national id') || lowerName.includes('nric') || lowerName.includes('id document')) return 'National ID Document';
+  if (lowerName.includes('registry')) return 'Registry Document';
+  if (lowerName.includes('appointment')) return 'Appointment Document';
+  if (lowerName.includes('address') || lowerName.includes('proof')) return 'Address Verification';
+  if (lowerName.includes('profile')) return 'Company Profile';
+  if (lowerName.includes('shareholder')) return 'Shareholding Document';
+  
+  return 'Other Document';
+}
+
+// Helper function to infer ID type from number format and nationality
+function inferIdTypeFromNumber(idNumber: any, nationality: any) {
+  if (!idNumber) return null;
+  
+  // Convert to string if not already
+  const idStr = String(idNumber).trim();
+  
+  // Singapore NRIC pattern: S/T/F/G/M followed by 7 digits and a letter
+  if (/^[STFGM]\d{7}[A-Z]$/i.test(idStr)) {
+    return 'NRIC';
+  }
+  
+  // Passport patterns
+  if (/^P\d+[A-Z]?$/i.test(idStr) || // P followed by numbers
+      /^[A-Z]\d{6,9}$/i.test(idStr) || // Letter followed by digits
+      /^X\d{7}$/i.test(idStr)) { // X followed by 7 digits
+    return 'Passport';
+  }
+  
+  // If format looks like a passport but we couldn't specifically identify
+  if (/^[A-Z0-9]{6,10}$/i.test(idStr)) {
+    return 'Passport';
+  }
+  
+  // If we can't determine from format
+  return 'Unknown ID';
+}
+
 // Create and commit the director extraction workflow
 const directorExtractionWorkflow = new Workflow({
   name: 'director-extraction-workflow',
@@ -476,4 +548,4 @@ const directorExtractionWorkflow = new Workflow({
 
 directorExtractionWorkflow.commit();
 
-export { directorExtractionWorkflow }; 
+export { directorExtractionWorkflow };
