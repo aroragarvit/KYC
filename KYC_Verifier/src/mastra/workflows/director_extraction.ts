@@ -276,15 +276,29 @@ const storeDirectorInfo = new Step({
 
     try {
       // Store director information for the company
-      const response = await axios.post(`http://localhost:3000/api/director-data`, {
-        company: companyName,
-        directors: directorInfo
+      const response = await axios.post(`http://localhost:3000/companies/${companyName}/directors`, {
+        company_id: null, // Will be assigned by the API based on company name
+        full_name: directorInfo[0]?.full_name || null,
+        id_number: directorInfo[0]?.id_number || null,
+        id_type: directorInfo[0]?.id_type || null,
+        nationality: directorInfo[0]?.nationality || null,
+        residential_address: directorInfo[0]?.residential_address || null,
+        telephone_number: directorInfo[0]?.telephone_number || null,
+        email_address: directorInfo[0]?.email_address || null,
+        full_name_source: JSON.stringify(directorInfo[0]?.sources?.full_name || []),
+        id_number_source: JSON.stringify(directorInfo[0]?.sources?.id_number || []),
+        id_type_source: JSON.stringify(directorInfo[0]?.sources?.id_type || []),
+        nationality_source: JSON.stringify(directorInfo[0]?.sources?.nationality || []),
+        residential_address_source: JSON.stringify(directorInfo[0]?.sources?.residential_address || []),
+        telephone_number_source: JSON.stringify(directorInfo[0]?.sources?.telephone_number || []),
+        email_address_source: JSON.stringify(directorInfo[0]?.sources?.email_address || []),
+        discrepancies: ""
       });
 
       return {
         company: companyName,
         directors: directorInfo,
-        extraction_status: 'SUCCESS',
+        extraction_status: 'SUCCESS' as const,
         message: `Successfully extracted and stored information for ${directorInfo.length} directors`
       };
     } catch (error) {
@@ -313,16 +327,18 @@ const storeDirectorInfo = new Step({
         return {
           company: companyName,
           directors: directorInfo,
-          extraction_status: 'SUCCESS',
+          extraction_status: 'SUCCESS' as const,
           message: `Successfully extracted and stored information for ${directorInfo.length} directors (local storage fallback)`
         };
-      } catch (fsError) {
+      } catch (fsError: unknown) {
         console.error('Error with fallback storage:', fsError);
         return {
           company: companyName,
           directors: directorInfo,
-          extraction_status: 'PARTIAL',
-          message: `Extracted director information but failed to store permanently: ${fsError.message}`
+          extraction_status: 'PARTIAL' as const,
+          message: `Extracted director information but failed to store permanently: ${
+            (fsError instanceof Error) ? fsError.message : 'Unknown error'
+          }`
         };
       }
     }

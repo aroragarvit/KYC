@@ -103,9 +103,45 @@ const fetchDirectorData = new Step({
     }
 
     try {
-      // Try fetching from API first
-      const response = await axios.get(`http://localhost:3000/api/director-data/${companyName}`);
-      return response.data;
+      // Try fetching from API first using the companies/:name/directors endpoint
+      const response = await axios.get(`http://localhost:3000/companies/${companyName}/directors`);
+      
+      // Transform the response to match our schema
+      const directors = response.data.directors.map((director: any) => {
+        // Parse the source strings back to objects
+        const parseSourceField = (sourceStr: string | null) => {
+          if (!sourceStr) return [];
+          try {
+            return JSON.parse(sourceStr);
+          } catch (e) {
+            return [];
+          }
+        };
+
+        return {
+          full_name: director.full_name,
+          id_number: director.id_number,
+          id_type: director.id_type,
+          nationality: director.nationality,
+          residential_address: director.residential_address,
+          telephone_number: director.telephone_number,
+          email_address: director.email_address,
+          sources: {
+            full_name: parseSourceField(director.full_name_source),
+            id_number: parseSourceField(director.id_number_source),
+            id_type: parseSourceField(director.id_type_source),
+            nationality: parseSourceField(director.nationality_source),
+            residential_address: parseSourceField(director.residential_address_source),
+            telephone_number: parseSourceField(director.telephone_number_source),
+            email_address: parseSourceField(director.email_address_source),
+          }
+        };
+      });
+
+      return {
+        company: companyName,
+        directors: directors
+      };
     } catch (error) {
       console.log(`API fetch failed, trying local storage for ${companyName}`);
       
@@ -283,12 +319,38 @@ const generateVerificationReport = new Step({
 
     // Store verification results if needed
     try {
-      await axios.post(`http://localhost:3000/api/verification-results`, {
-        company: companyName,
-        verification_results: verificationResults,
-        verification_status: overallStatus,
-        summary
-      });
+      // Since there's no direct verification results API, 
+      // we'll update each director with the discrepancies field
+      for (const verificationResult of verificationResults) {
+        try {
+          // Find existing director in database
+          const director = verificationResult.director;
+          if (director && director.full_name) {
+            // Post to the companies/:name/directors endpoint with discrepancies
+            await axios.post(`http://localhost:3000/companies/${companyName}/directors`, {
+              full_name: director.full_name,
+              id_number: director.id_number,
+              id_type: director.id_type,
+              nationality: director.nationality,
+              residential_address: director.residential_address,
+              telephone_number: director.telephone_number,
+              email_address: director.email_address,
+              // Keep source information
+              full_name_source: JSON.stringify(director.sources?.full_name || []),
+              id_number_source: JSON.stringify(director.sources?.id_number || []),
+              id_type_source: JSON.stringify(director.sources?.id_type || []),
+              nationality_source: JSON.stringify(director.sources?.nationality || []),
+              residential_address_source: JSON.stringify(director.sources?.residential_address || []),
+              telephone_number_source: JSON.stringify(director.sources?.telephone_number || []),
+              email_address_source: JSON.stringify(director.sources?.email_address || []),
+              // Add discrepancies information
+              discrepancies: JSON.stringify(verificationResult.discrepancies)
+            });
+          }
+        } catch (directorError) {
+          console.error('Error updating director with verification results:', directorError);
+        }
+      }
     } catch (error) {
       console.log('Failed to store verification results, continuing with report generation');
     }
