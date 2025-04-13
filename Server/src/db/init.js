@@ -45,13 +45,14 @@ function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS directors (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         company_id INTEGER NOT NULL,
-        full_name TEXT,
+        full_name TEXT, /* Stores primary value; actual values stored in full_name_values */
         id_number TEXT,
         id_type TEXT,
         nationality TEXT,
         residential_address TEXT,
         telephone_number TEXT,
         email_address TEXT,
+        /* Source fields remain the same - they already store JSON arrays */
         full_name_source TEXT,
         id_number_source TEXT,
         id_type_source TEXT,
@@ -59,6 +60,14 @@ function initializeDatabase() {
         residential_address_source TEXT,
         telephone_number_source TEXT,
         email_address_source TEXT,
+        /* New fields to store array of all values */
+        full_name_values TEXT, /* JSON array of all values found */
+        id_number_values TEXT,
+        id_type_values TEXT,
+        nationality_values TEXT,
+        residential_address_values TEXT,
+        telephone_number_values TEXT,
+        email_address_values TEXT,
         discrepancies TEXT,
         FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE,
         UNIQUE(company_id, full_name)
@@ -166,15 +175,15 @@ function initializeDatabase() {
 
     console.log("\nAvailable API endpoints:");
     console.log(
-      `- Get all documents: curl http://localhost:3000/companies/Truffles/documents`,
+      `- Get all documents: curl http://localhost:3000/companies/Truffles/documents`
     );
     console.log(
-      `- Read document content: curl http://localhost:3000/documents/read?id=DOCUMENT_ID`,
+      `- Read document content: curl http://localhost:3000/documents/read?id=DOCUMENT_ID`
     );
     console.log(`\nExample to read a document:`);
     if (docxFilesFound.length > 0) {
       console.log(
-        `curl "http://localhost:3000/documents/read?id=1"`,
+        `curl "http://localhost:3000/documents/read?id=1"`
       );
     }
 

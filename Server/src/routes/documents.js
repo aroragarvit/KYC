@@ -221,8 +221,10 @@ async function documentRoutes(fastify, options) {
           residential_address, telephone_number, email_address,
           full_name_source, id_number_source, id_type_source, nationality_source,
           residential_address_source, telephone_number_source, email_address_source,
+          full_name_values, id_number_values, id_type_values, nationality_values,
+          residential_address_values, telephone_number_values, email_address_values,
           discrepancies
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (company_id, full_name) 
         DO UPDATE SET 
           id_number = excluded.id_number,
@@ -238,6 +240,13 @@ async function documentRoutes(fastify, options) {
           residential_address_source = excluded.residential_address_source,
           telephone_number_source = excluded.telephone_number_source,
           email_address_source = excluded.email_address_source,
+          full_name_values = excluded.full_name_values,
+          id_number_values = excluded.id_number_values,
+          id_type_values = excluded.id_type_values,
+          nationality_values = excluded.nationality_values,
+          residential_address_values = excluded.residential_address_values,
+          telephone_number_values = excluded.telephone_number_values,
+          email_address_values = excluded.email_address_values,
           discrepancies = excluded.discrepancies
         RETURNING id
       `);
@@ -258,6 +267,13 @@ async function documentRoutes(fastify, options) {
         directorData.residential_address_source,
         directorData.telephone_number_source,
         directorData.email_address_source,
+        directorData.full_name_values || JSON.stringify([]),
+        directorData.id_number_values || JSON.stringify([]),
+        directorData.id_type_values || JSON.stringify([]),
+        directorData.nationality_values || JSON.stringify([]),
+        directorData.residential_address_values || JSON.stringify([]),
+        directorData.telephone_number_values || JSON.stringify([]),
+        directorData.email_address_values || JSON.stringify([]),
         directorData.discrepancies
       );
 

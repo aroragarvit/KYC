@@ -313,6 +313,9 @@ const storeDirectorInfo = new Step({
             value: string;
           }
 
+          // Extract all unique values for each field
+          const allFieldValues: Record<string, string[]> = {};
+          
           // Check for discrepancies in each field
           const fieldsToCheck = [
             {name: 'full_name', label: 'Full Name'},
@@ -326,13 +329,18 @@ const storeDirectorInfo = new Step({
           
           for (const field of fieldsToCheck) {
             const sources = director.sources[field.name as keyof typeof director.sources];
-            if (sources && sources.length > 1) {
+            // Initialize the array for this field
+            allFieldValues[field.name] = [];
+            
+            if (sources && sources.length > 0) {
               // Extract unique values from sources
               const uniqueValues = new Map();
               
               for (const source of sources) {
                 if (!uniqueValues.has(source.value)) {
                   uniqueValues.set(source.value, [source]);
+                  // Add to allFieldValues array
+                  allFieldValues[field.name].push(source.value);
                 } else {
                   uniqueValues.get(source.value).push(source);
                 }
@@ -357,9 +365,10 @@ const storeDirectorInfo = new Step({
             }
           }
           
-          // Store each director with discrepancies information
+          // Store each director with all values and discrepancies information
           await axios.post(`http://localhost:3000/companies/${companyName}/directors`, {
             company_id: null, // Will be assigned by the API based on company name
+            // Main fields use the first value found (or null if not found)
             full_name: director?.full_name || null,
             id_number: director?.id_number || null,
             id_type: director?.id_type || null,
@@ -367,6 +376,7 @@ const storeDirectorInfo = new Step({
             residential_address: director?.residential_address || null,
             telephone_number: director?.telephone_number || null,
             email_address: director?.email_address || null,
+            // Store sources as before
             full_name_source: JSON.stringify(director?.sources?.full_name || []),
             id_number_source: JSON.stringify(director?.sources?.id_number || []),
             id_type_source: JSON.stringify(director?.sources?.id_type || []),
@@ -374,10 +384,19 @@ const storeDirectorInfo = new Step({
             residential_address_source: JSON.stringify(director?.sources?.residential_address || []),
             telephone_number_source: JSON.stringify(director?.sources?.telephone_number || []),
             email_address_source: JSON.stringify(director?.sources?.email_address || []),
+            // Store all values as arrays
+            full_name_values: JSON.stringify(allFieldValues.full_name || []),
+            id_number_values: JSON.stringify(allFieldValues.id_number || []),
+            id_type_values: JSON.stringify(allFieldValues.id_type || []),
+            nationality_values: JSON.stringify(allFieldValues.nationality || []),
+            residential_address_values: JSON.stringify(allFieldValues.residential_address || []),
+            telephone_number_values: JSON.stringify(allFieldValues.telephone_number || []),
+            email_address_values: JSON.stringify(allFieldValues.email_address || []),
+            // Store discrepancies as before
             discrepancies: JSON.stringify(discrepancies)
           });
           
-          successfulDirectors.push({...director, discrepancies});
+          successfulDirectors.push({...director, discrepancies, allFieldValues});
           console.log(`Successfully stored director: ${director?.full_name || 'Unknown'}`);
           if (discrepancies.length > 0) {
             console.log(`Found ${discrepancies.length} discrepancies for ${director?.full_name || 'Unknown'}`);
