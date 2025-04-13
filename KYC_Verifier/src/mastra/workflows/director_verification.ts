@@ -10,8 +10,9 @@ const companySchema = z.object({
   name: z.string().describe('The company name to verify director information for'),
 });
 
-// Director information schema
+// Director information schema with verification fields
 const directorInfoSchema = z.object({
+  id: z.number(),
   full_name: z.string().nullable(),
   id_number: z.string().nullable(),
   id_type: z.string().nullable(),
@@ -19,44 +20,77 @@ const directorInfoSchema = z.object({
   residential_address: z.string().nullable(),
   telephone_number: z.string().nullable(),
   email_address: z.string().nullable(),
+  discrepancies: z.string().nullable(),
+  verification_Status: z.string().nullable(),
+  KYC_Status: z.string().nullable(),
   sources: z.object({
     full_name: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
-    })),
+    })).optional(),
     id_number: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
-    })),
+    })).optional(),
     id_type: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
-    })),
+    })).optional(),
     nationality: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
-    })),
+    })).optional(),
     residential_address: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
-    })),
+    })).optional(),
     telephone_number: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
-    })),
+    })).optional(),
     email_address: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
-    })),
-  }),
+    })).optional(),
+  }).optional(),
 });
+
+// TypeScript types for runtime use
+type Director = z.infer<typeof directorInfoSchema> & {
+  // Additional fields used during processing
+  parsedDiscrepancies?: Array<Discrepancy>;
+  full_name_array?: string[];
+  id_number_array?: string[];
+  id_type_array?: string[];
+  nationality_array?: string[];
+  residential_address_array?: string[];
+  telephone_number_array?: string[];
+  email_address_array?: string[];
+};
+
+interface Discrepancy {
+  field: string;
+  values: string[];
+}
+
+interface GenuineDiscrepancy {
+  field: string;
+  values: string[];
+  explanation: string;
+}
+
+interface ResolvedDiscrepancy {
+  field: string;
+  values: string[];
+  resolution: string;
+}
 
 // Stored data schema
 const storedDataSchema = z.object({
@@ -65,34 +99,44 @@ const storedDataSchema = z.object({
   timestamp: z.string().optional(),
 });
 
-// Verification result schema with discrepancies
+// Verification result schema
 const verificationResultSchema = z.object({
-  director: directorInfoSchema,
-  discrepancies: z.array(z.object({
-    field: z.string(),
-    values: z.array(z.object({
-      value: z.string(),
-      source: z.string(),
-    })),
-    recommendation: z.string(),
-  })),
-  missing_fields: z.array(z.string()),
-  verification_status: z.enum(['VERIFIED', 'INCOMPLETE', 'DISCREPANCIES_FOUND']),
-  verification_summary: z.string(),
+  director_id: z.number(),
+  full_name: z.string().nullable(),
+  verification_Status: z.enum(['verified', 'notverified', 'pending']),
+  KYC_Status: z.string().nullable(),
+  details: z.object({
+    genuine_discrepancies: z.array(z.object({
+      field: z.string(),
+      values: z.array(z.string()),
+      explanation: z.string().optional(),
+      documents: z.array(z.number()).optional(),
+    })).optional(),
+    resolved_discrepancies: z.array(z.object({
+      field: z.string(),
+      values: z.array(z.string()),
+      resolution: z.string(),
+    })).optional(),
+    missing_fields: z.array(z.string()).optional(),
+  }),
 });
 
 // Final workflow result schema
 const workflowResultSchema = z.object({
   company: z.string(),
-  directors: z.array(verificationResultSchema),
-  verification_status: z.enum(['VERIFIED', 'INCOMPLETE', 'DISCREPANCIES_FOUND']),
+  processed_directors: z.number(),
+  skipped_directors: z.number(),
+  verified_count: z.number(),
+  pending_count: z.number(),
+  notverified_count: z.number(),
+  verification_results: z.array(verificationResultSchema),
   summary: z.string(),
 });
 
-// Step 1: Fetch director data from storage
-const fetchDirectorData = new Step({
-  id: 'fetch-director-data',
-  description: 'Fetches stored director information for a company',
+// Step 1: Fetch all directors for the company
+const fetchDirectors = new Step({
+  id: 'fetch-directors',
+  description: 'Fetches all directors for a company and filters out notverified ones',
   inputSchema: companySchema,
   outputSchema: storedDataSchema,
   execute: async ({ context }) => {
@@ -103,263 +147,308 @@ const fetchDirectorData = new Step({
     }
 
     try {
-      // Try fetching from API first using the companies/:name/directors endpoint
+      // Fetch directors from API
       const response = await axios.get(`http://localhost:3000/companies/${companyName}/directors`);
       
-      // Transform the response to match our schema
-      const directors = response.data.directors.map((director: any) => {
-        // Parse the source strings back to objects
-        const parseSourceField = (sourceStr: string | null) => {
-          if (!sourceStr) return [];
+      // Filter out directors with "notverified" status - only process "pending" and "verified" ones
+      const filteredDirectors = response.data.directors.filter(
+        (director: any) => director.verification_Status !== 'notverified'
+      );
+      
+      console.log(`Found ${response.data.directors.length} directors, processing ${filteredDirectors.length} (excluding notverified)`);
+      
+      // Parse discrepancies for each director
+      const processedDirectors = filteredDirectors.map((director: any) => {
+        try {
+          if (director.discrepancies) {
+            director.parsedDiscrepancies = JSON.parse(director.discrepancies);
+          } else {
+            director.parsedDiscrepancies = [];
+          }
+        } catch (e) {
+          console.error(`Error parsing discrepancies for director ${director.id}:`, e);
+          director.parsedDiscrepancies = [];
+        }
+        
+        // Ensure sources arrays are defined
+        director.sources = {
+          full_name: [],
+          id_number: [],
+          id_type: [],
+          nationality: [],
+          residential_address: [],
+          telephone_number: [],
+          email_address: [],
+        };
+        
+        // Parse value arrays
+        ['full_name_values', 'id_number_values', 'id_type_values', 'nationality_values', 
+         'residential_address_values', 'telephone_number_values', 'email_address_values'].forEach(field => {
           try {
-            return JSON.parse(sourceStr);
+            if (director[field]) {
+              director[field.replace('_values', '_array')] = JSON.parse(director[field]);
+            } else {
+              director[field.replace('_values', '_array')] = [];
+            }
           } catch (e) {
-            return [];
+            director[field.replace('_values', '_array')] = [];
           }
-        };
-
-        return {
-          full_name: director.full_name,
-          id_number: director.id_number,
-          id_type: director.id_type,
-          nationality: director.nationality,
-          residential_address: director.residential_address,
-          telephone_number: director.telephone_number,
-          email_address: director.email_address,
-          sources: {
-            full_name: parseSourceField(director.full_name_source),
-            id_number: parseSourceField(director.id_number_source),
-            id_type: parseSourceField(director.id_type_source),
-            nationality: parseSourceField(director.nationality_source),
-            residential_address: parseSourceField(director.residential_address_source),
-            telephone_number: parseSourceField(director.telephone_number_source),
-            email_address: parseSourceField(director.email_address_source),
+        });
+        
+        // Parse source arrays
+        ['full_name_source', 'id_number_source', 'id_type_source', 'nationality_source', 
+         'residential_address_source', 'telephone_number_source', 'email_address_source'].forEach(field => {
+          try {
+            if (director[field]) {
+              const sourceField = field.replace('_source', '');
+              director.sources[sourceField] = JSON.parse(director[field]);
+            }
+          } catch (e) {
+            const sourceField = field.replace('_source', '');
+            director.sources[sourceField] = [];
           }
-        };
+        });
+        
+        return director;
       });
-
+      
       return {
         company: companyName,
-        directors: directors
+        directors: processedDirectors as z.infer<typeof directorInfoSchema>[]
       };
     } catch (error) {
-      console.log(`API fetch failed, trying local storage for ${companyName}`);
-      
-      // If API call fails, check local storage
-      try {
-        const dataDir = path.join(process.cwd(), 'data');
-        const filePath = path.join(dataDir, `${companyName.toLowerCase()}_directors.json`);
-        
-        if (!fs.existsSync(filePath)) {
-          throw new Error(`No stored data found for company ${companyName}`);
-        }
-        
-        const fileData = fs.readFileSync(filePath, 'utf8');
-        const parsedData = JSON.parse(fileData);
-        
-        return {
-          company: parsedData.company,
-          directors: parsedData.directors,
-          timestamp: parsedData.timestamp
-        };
-      } catch (fsError) {
-        console.error('Error reading director data from storage:', fsError);
-        throw new Error(`Failed to retrieve director data for company ${companyName}`);
-      }
+      console.error('Error fetching director data:', error);
+      throw new Error(`Failed to retrieve director data for company ${companyName}`);
     }
   },
 });
 
-// Step 2: Verify director information and identify discrepancies
-const verifyDirectorInfo = new Step({
-  id: 'verify-director-info',
-  description: 'Verifies director information and identifies discrepancies',
+// Step 2: Verify directors and update status
+const verifyDirectors = new Step({
+  id: 'verify-directors',
+  description: 'Evaluates discrepancies and updates verification status',
   inputSchema: storedDataSchema,
-  outputSchema: z.array(verificationResultSchema),
-  execute: async ({ context }) => {
-    const directorData = context?.getStepResult(fetchDirectorData);
-    
-    if (!directorData || !directorData.directors || directorData.directors.length === 0) {
-      throw new Error('No director information found');
-    }
-
-    const verificationResults = [];
-    
-    for (const director of directorData.directors) {
-      // Prepare prompt for verification agent
-      const prompt = `
-      I need to verify the following director information that has been extracted from multiple documents:
-      
-      ${JSON.stringify(director, null, 2)}
-      
-      Please analyze this information to:
-      1. Identify any discrepancies between different sources
-      2. List any missing critical fields
-      3. Provide a verification status
-      
-      Return your analysis in this exact JSON format:
-      {
-        "director": ${JSON.stringify(director)},
-        "discrepancies": [
-          {
-            "field": "field_name",
-            "values": [
-              { "value": "value1", "source": "Document 1" },
-              { "value": "value2", "source": "Document 2" }
-            ],
-            "recommendation": "Clear explanation of the issue and recommendation"
-          }
-        ],
-        "missing_fields": ["field_name1", "field_name2"],
-        "verification_status": "STATUS", // VERIFIED, INCOMPLETE, or DISCREPANCIES_FOUND
-        "verification_summary": "A concise summary of the verification result"
-      }
-      `;
-
-      // Call the verification agent
-      const response = await verificationAgent.stream([
-        { role: 'user', content: prompt }
-      ]);
-
-      let resultText = '';
-      for await (const chunk of response.textStream) {
-        resultText += chunk;
-      }
-
-      // Parse the response
-      try {
-        const verificationResult = JSON.parse(resultText);
-        verificationResults.push(verificationResult);
-      } catch (error) {
-        console.error(`Error parsing verification result for ${director.full_name}:`, error);
-        // Try to extract JSON from text response
-        const jsonRegex = /\{[\s\S]*\}/g;
-        const match = resultText.match(jsonRegex);
-        if (match) {
-          try {
-            const extracted = JSON.parse(match[0]);
-            verificationResults.push(extracted);
-          } catch (e) {
-            throw new Error(`Failed to parse verification result for ${director.full_name}`);
-          }
-        } else {
-          throw new Error(`Failed to extract verification result for ${director.full_name}`);
-        }
-      }
-    }
-    
-    return verificationResults;
-  },
-});
-
-// Step 3: Generate final verification report
-const generateVerificationReport = new Step({
-  id: 'generate-verification-report',
-  description: 'Generates a final verification report',
-  inputSchema: z.array(verificationResultSchema),
   outputSchema: workflowResultSchema,
   execute: async ({ context }) => {
-    const verificationResults = context?.getStepResult(verifyDirectorInfo);
-    const directorData = context?.getStepResult(fetchDirectorData);
+    const directorData = context?.getStepResult(fetchDirectors);
     
-    if (!verificationResults || verificationResults.length === 0) {
-      throw new Error('No verification results found');
-    }
-    
-    if (!directorData || !directorData.company) {
-      throw new Error('Company information not found');
-    }
-
-    const companyName = directorData.company;
-
-    // Determine overall verification status
-    let overallStatus: 'VERIFIED' | 'INCOMPLETE' | 'DISCREPANCIES_FOUND' = 'VERIFIED';
-    for (const result of verificationResults) {
-      if (result.verification_status === 'INCOMPLETE') {
-        overallStatus = 'INCOMPLETE';
-      } else if (result.verification_status === 'DISCREPANCIES_FOUND' && overallStatus !== 'INCOMPLETE') {
-        overallStatus = 'DISCREPANCIES_FOUND';
-      }
+    if (!directorData || !directorData.directors || directorData.directors.length === 0) {
+      console.log('No directors to verify');
+      return {
+        company: directorData?.company || 'Unknown',
+        processed_directors: 0,
+        skipped_directors: 0,
+        verified_count: 0,
+        pending_count: 0,
+        notverified_count: 0,
+        verification_results: [],
+        summary: 'No directors to verify',
+      };
     }
 
-    // Generate summary based on verification results
-    let summary = `KYC Verification Report for ${companyName}\n\n`;
-    summary += `Directors Analyzed: ${verificationResults.length}\n`;
+    const verificationResults: Array<z.infer<typeof verificationResultSchema>> = [];
+    let verified = 0;
+    let pending = 0;
+    let notverified = 0;
+    let skipped = 0;
     
-    const verified = verificationResults.filter(r => r.verification_status === 'VERIFIED').length;
-    const incomplete = verificationResults.filter(r => r.verification_status === 'INCOMPLETE').length;
-    const discrepancies = verificationResults.filter(r => r.verification_status === 'DISCREPANCIES_FOUND').length;
-    
-    summary += `Verified: ${verified}\n`;
-    summary += `Incomplete: ${incomplete}\n`;
-    summary += `With Discrepancies: ${discrepancies}\n\n`;
-    
-    summary += `Overall Status: ${overallStatus}\n\n`;
-    
-    if (overallStatus !== 'VERIFIED') {
-      summary += 'Action Required: The following issues need to be addressed:\n';
+    for (const directorBase of directorData.directors) {
+      // Safely cast to our extended type with runtime properties
+      const director = directorBase as Director;
       
-      verificationResults.forEach((result, index) => {
-        if (result.verification_status !== 'VERIFIED') {
-          summary += `\n- Director ${index + 1} (${result.director.full_name || 'Unknown'}): ${result.verification_status}\n`;
-          
-          if (result.missing_fields.length > 0) {
-            summary += `  Missing fields: ${result.missing_fields.join(', ')}\n`;
-          }
-          
-          if (result.discrepancies.length > 0) {
-            summary += `  Discrepancies: ${result.discrepancies.length} found\n`;
-            result.discrepancies.forEach(discrepancy => {
-              summary += `    - ${discrepancy.field}: ${discrepancy.recommendation}\n`;
-            });
-          }
-        }
-      });
-    }
+      // Skip directors that are already marked as notverified
+      if (director.verification_Status === 'notverified') {
+        skipped++;
+        continue;
+      }
 
-    // Store verification results if needed
-    try {
-      // Since there's no direct verification results API, 
-      // we'll update each director with the discrepancies field
-      for (const verificationResult of verificationResults) {
+      // Check for discrepancies
+      let discrepancies: Discrepancy[] = [];
+      try {
+        if (director.discrepancies) {
+          discrepancies = typeof director.discrepancies === 'string' 
+            ? JSON.parse(director.discrepancies)
+            : (director.parsedDiscrepancies || []);
+        }
+      } catch (e) {
+        console.error(`Error parsing discrepancies for director ${director.id}:`, e);
+        discrepancies = [];
+      }
+      
+      // If there are discrepancies, evaluate if they're genuine
+      const genuineDiscrepancies: GenuineDiscrepancy[] = [];
+      const resolvedDiscrepancies: ResolvedDiscrepancy[] = [];
+      
+      if (discrepancies.length > 0) {
+        const prompt = `
+        I need to evaluate if the following discrepancies in a director's KYC information are genuine issues or just variations of the same information:
+        
+        Director: ${director.full_name || 'Unknown'}
+        
+        Discrepancies:
+        ${JSON.stringify(discrepancies, null, 2)}
+        
+        For each discrepancy, determine if it's a genuine issue (different information) or just a variation (same information in different format).
+        
+        Examples of variations that are NOT genuine discrepancies:
+        1. "American" vs "USA" (same nationality, different format)
+        2. "Singaporean" vs "Singapore" (same nationality, different format)
+        3. "John Doe" vs "Johnathan Doe" if they clearly refer to the same person
+        4. Different formats of the same address
+        5. Different formats of the same phone number
+        
+        Examples of GENUINE discrepancies:
+        1. Different nationalities ("Singapore" vs "Malaysia")
+        2. Different addresses that don't refer to the same location
+        3. Different ID numbers unless one is a passport and another is a national ID
+        4. Names that may refer to different people
+        
+        Provide your analysis in this exact JSON format:
+        {
+          "evaluated_discrepancies": [
+            {
+              "field": "field_name",
+              "values": ["value1", "value2"],
+              "is_genuine_discrepancy": true/false,
+              "explanation": "Clear explanation of your reasoning"
+            }
+          ]
+        }`;
+
+        // Call the verification agent to evaluate discrepancies
+        const response = await verificationAgent.stream([
+          { role: 'user', content: prompt }
+        ]);
+
+        let resultText = '';
+        for await (const chunk of response.textStream) {
+          resultText += chunk;
+        }
+
+        // Extract JSON from the response
         try {
-          // Find existing director in database
-          const director = verificationResult.director;
-          if (director && director.full_name) {
-            // Post to the companies/:name/directors endpoint with discrepancies
-            await axios.post(`http://localhost:3000/companies/${companyName}/directors`, {
-              full_name: director.full_name,
-              id_number: director.id_number,
-              id_type: director.id_type,
-              nationality: director.nationality,
-              residential_address: director.residential_address,
-              telephone_number: director.telephone_number,
-              email_address: director.email_address,
-              // Keep source information
-              full_name_source: JSON.stringify(director.sources?.full_name || []),
-              id_number_source: JSON.stringify(director.sources?.id_number || []),
-              id_type_source: JSON.stringify(director.sources?.id_type || []),
-              nationality_source: JSON.stringify(director.sources?.nationality || []),
-              residential_address_source: JSON.stringify(director.sources?.residential_address || []),
-              telephone_number_source: JSON.stringify(director.sources?.telephone_number || []),
-              email_address_source: JSON.stringify(director.sources?.email_address || []),
-              // Add discrepancies information
-              discrepancies: JSON.stringify(verificationResult.discrepancies)
-            });
+          const jsonRegex = /\{[\s\S]*\}/g;
+          const match = resultText.match(jsonRegex);
+          if (match) {
+            const evaluation = JSON.parse(match[0]) as { 
+              evaluated_discrepancies?: Array<{
+                field: string;
+                values: string[];
+                is_genuine_discrepancy: boolean;
+                explanation: string;
+              }> 
+            };
+            
+            // Process evaluated discrepancies
+            if (evaluation.evaluated_discrepancies) {
+              evaluation.evaluated_discrepancies.forEach((item) => {
+                if (item.is_genuine_discrepancy) {
+                  // This is a genuine discrepancy
+                  genuineDiscrepancies.push({
+                    field: item.field,
+                    values: item.values,
+                    explanation: item.explanation
+                  });
+                } else {
+                  // This is a resolved discrepancy (not a genuine issue)
+                  resolvedDiscrepancies.push({
+                    field: item.field,
+                    values: item.values,
+                    resolution: item.explanation
+                  });
+                }
+              });
+            }
           }
-        } catch (directorError) {
-          console.error('Error updating director with verification results:', directorError);
+        } catch (error) {
+          console.error(`Error parsing verification evaluation for ${director.full_name}:`, error);
         }
       }
-    } catch (error) {
-      console.log('Failed to store verification results, continuing with report generation');
+      
+      // Check for missing required fields - use safe property access
+      const requiredFields = ['full_name', 'id_number', 'id_type', 'nationality', 'residential_address'];
+      const missingFields = requiredFields.filter(field => {
+        const key = field as keyof typeof director;
+        const value = director[key];
+        return !value || value === '' || value === null;
+      });
+      
+      // Determine verification status
+      let verificationStatus: 'verified' | 'notverified' | 'pending';
+      let kycStatus = null;
+      
+      if (genuineDiscrepancies.length > 0) {
+        // Genuine discrepancies detected - mark as notverified
+        verificationStatus = 'notverified';
+        kycStatus = JSON.stringify({
+          status: 'Discrepancies detected',
+          fields: genuineDiscrepancies.map(d => d.field),
+          discrepancies: genuineDiscrepancies
+        });
+        notverified++;
+      } else if (missingFields.length > 0) {
+        // No genuine discrepancies but some required fields are missing - mark as pending
+        verificationStatus = 'pending';
+        kycStatus = JSON.stringify({
+          status: 'Required fields missing',
+          missing_fields: missingFields
+        });
+        pending++;
+      } else {
+        // No genuine discrepancies and all required fields are present - mark as verified
+        verificationStatus = 'verified';
+        verified++;
+      }
+      
+      // Prepare verification result
+      const verificationResult: z.infer<typeof verificationResultSchema> = {
+        director_id: director.id,
+        full_name: director.full_name,
+        verification_Status: verificationStatus,
+        KYC_Status: kycStatus,
+        details: {
+          genuine_discrepancies: genuineDiscrepancies,
+          resolved_discrepancies: resolvedDiscrepancies,
+          missing_fields: missingFields
+        }
+      };
+      
+      // Update the director status in the database
+      try {
+        await axios.patch(`http://localhost:3000/directors/${director.id}/verification`, {
+          verification_Status: verificationStatus,
+          KYC_Status: kycStatus
+        });
+        console.log(`Updated verification status for director ${director.id} to ${verificationStatus}`);
+      } catch (updateError) {
+        console.error(`Error updating director ${director.id}:`, updateError);
+      }
+      
+      verificationResults.push(verificationResult);
     }
-
+    
+    // Generate summary
+    const summary = `
+    KYC Verification Summary for ${directorData.company}
+    -------------------------------------------
+    Directors processed: ${verificationResults.length}
+    Directors skipped (already notverified): ${skipped}
+    
+    Results:
+    - Verified: ${verified}
+    - Pending (incomplete information): ${pending}
+    - Not Verified (discrepancies found): ${notverified}
+    `;
+    
     return {
-      company: companyName,
-      directors: verificationResults,
-      verification_status: overallStatus,
-      summary,
+      company: directorData.company,
+      processed_directors: verificationResults.length,
+      skipped_directors: skipped,
+      verified_count: verified,
+      pending_count: pending,
+      notverified_count: notverified,
+      verification_results: verificationResults,
+      summary
     };
   },
 });
@@ -369,9 +458,8 @@ const directorVerificationWorkflow = new Workflow({
   name: 'director-verification-workflow',
   triggerSchema: companySchema,
 })
-  .step(fetchDirectorData)
-  .then(verifyDirectorInfo)
-  .then(generateVerificationReport);
+  .step(fetchDirectors)
+  .then(verifyDirectors);
 
 directorVerificationWorkflow.commit();
 

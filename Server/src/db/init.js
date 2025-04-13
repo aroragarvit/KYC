@@ -69,6 +69,8 @@ function initializeDatabase() {
         telephone_number_values TEXT,
         email_address_values TEXT,
         discrepancies TEXT,
+        verification_Status TEXT DEFAULT 'pending', /* Can be: verified, notverified, pending */
+        KYC_Status TEXT, /* Stores fields with discrepancies or incomplete fields as JSON */
         FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE,
         UNIQUE(company_id, full_name)
       );

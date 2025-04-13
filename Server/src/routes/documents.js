@@ -223,8 +223,8 @@ async function documentRoutes(fastify, options) {
           residential_address_source, telephone_number_source, email_address_source,
           full_name_values, id_number_values, id_type_values, nationality_values,
           residential_address_values, telephone_number_values, email_address_values,
-          discrepancies
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          discrepancies, verification_Status, KYC_Status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (company_id, full_name) 
         DO UPDATE SET 
           id_number = excluded.id_number,
@@ -247,7 +247,9 @@ async function documentRoutes(fastify, options) {
           residential_address_values = excluded.residential_address_values,
           telephone_number_values = excluded.telephone_number_values,
           email_address_values = excluded.email_address_values,
-          discrepancies = excluded.discrepancies
+          discrepancies = excluded.discrepancies,
+          verification_Status = COALESCE(excluded.verification_Status, verification_Status),
+          KYC_Status = COALESCE(excluded.KYC_Status, KYC_Status)
         RETURNING id
       `);
 
@@ -274,7 +276,9 @@ async function documentRoutes(fastify, options) {
         directorData.residential_address_values || JSON.stringify([]),
         directorData.telephone_number_values || JSON.stringify([]),
         directorData.email_address_values || JSON.stringify([]),
-        directorData.discrepancies
+        directorData.discrepancies,
+        directorData.verification_Status || 'pending',
+        directorData.KYC_Status
       );
 
       const director = fastify.db
@@ -284,6 +288,66 @@ async function documentRoutes(fastify, options) {
       return { 
         message: "Director information saved successfully", 
         director 
+      };
+    } catch (err) {
+      request.log.error(err);
+      reply
+        .code(500)
+        .send({ error: "Internal Server Error", message: err.message });
+    }
+  });
+
+  // New endpoint to update director verification status
+  fastify.patch("/directors/:id/verification", async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const { verification_Status, KYC_Status } = request.body;
+      
+      if (!verification_Status) {
+        reply.code(400).send({ error: "verification_Status is required" });
+        return;
+      }
+      
+      // Validate status value
+      if (!['verified', 'notverified', 'pending'].includes(verification_Status)) {
+        reply.code(400).send({ 
+          error: "Invalid verification_Status", 
+          message: "Status must be one of: verified, notverified, pending" 
+        });
+        return;
+      }
+      
+      // Check if director exists
+      const existingDirector = fastify.db
+        .prepare("SELECT id FROM directors WHERE id = ?")
+        .get(id);
+        
+      if (!existingDirector) {
+        reply.code(404).send({ error: "Director not found" });
+        return;
+      }
+      
+      // Update director status
+      const stmt = fastify.db.prepare(`
+        UPDATE directors 
+        SET verification_Status = ?, KYC_Status = ?
+        WHERE id = ?
+      `);
+      
+      stmt.run(
+        verification_Status, 
+        KYC_Status || null,
+        id
+      );
+      
+      // Get updated director
+      const director = fastify.db
+        .prepare("SELECT * FROM directors WHERE id = ?")
+        .get(id);
+      
+      return {
+        message: "Director verification status updated successfully",
+        director
       };
     } catch (err) {
       request.log.error(err);

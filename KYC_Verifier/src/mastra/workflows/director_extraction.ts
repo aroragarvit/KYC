@@ -240,7 +240,6 @@ const extractDirectorInfo = new Step({
       const response = await documentAnalysisAgent.stream([
         { role: 'user', content: prompt }
       ]);
-      
       let resultText = '';
       try {
         for await (const chunk of response.textStream) {
