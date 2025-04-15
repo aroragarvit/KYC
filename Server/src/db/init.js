@@ -53,15 +53,15 @@ function initializeDatabase() {
         residential_address TEXT,
         telephone_number TEXT,
         email_address TEXT,
-        /* Source fields remain the same - they already store JSON arrays */
-        full_name_source TEXT,
+        /* Source fields store JSON arrays that include document categorization */
+        full_name_source TEXT, /* JSON array with documentId, documentName, value, documentCategory */
         id_number_source TEXT,
         id_type_source TEXT,
         nationality_source TEXT,
         residential_address_source TEXT,
         telephone_number_source TEXT,
         email_address_source TEXT,
-        /* New fields to store array of all values */
+        /* Fields to store array of all values */
         full_name_values TEXT, /* JSON array of all values found */
         id_number_values TEXT,
         id_type_values TEXT,

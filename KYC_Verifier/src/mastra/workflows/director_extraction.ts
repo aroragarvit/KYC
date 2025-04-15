@@ -26,7 +26,15 @@ const documentContentSchema = z.object({
   content: z.string(),
 });
 
-// Director information schema
+// Company requirements schema
+const companyRequirementsSchema = z.object({
+  id_document_types: z.array(z.string()),
+  address_document_types: z.array(z.string()),
+  phone_requirement: z.string().optional(),
+  email_required: z.boolean().optional(),
+});
+
+// Director information schema with document classification
 const directorInfoSchema = z.object({
   full_name: z.string().nullable(),
   id_number: z.string().nullable(),
@@ -40,36 +48,43 @@ const directorInfoSchema = z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
+      documentCategory: z.string(),
     })),
     id_number: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
+      documentCategory: z.string(),
     })),
     id_type: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
+      documentCategory: z.string(),
     })),
     nationality: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
+      documentCategory: z.string(),
     })),
     residential_address: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
+      documentCategory: z.string(),
     })),
     telephone_number: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
+      documentCategory: z.string(),
     })),
     email_address: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
+      documentCategory: z.string(),
     })),
   }),
 });
@@ -144,27 +159,38 @@ const readDocumentContents = new Step({
   },
 });
 
-// Simplified Step 3: Extract director information with direct consolidation
+// Step 3: Extract director information with direct consolidation
 const extractDirectorInfo = new Step({
   id: 'extract-director-info',
-  description: 'Extracts director information from document contents',
+  description: 'Extracts director information from document contents with intelligent classification',
   inputSchema: z.array(documentContentSchema),
   outputSchema: z.array(directorInfoSchema),
   execute: async ({ context }) => {
     const documentContents = context?.getStepResult(readDocumentContents);
+    const companyName = context?.getStepResult<{ name: string }>('trigger')?.name;
+    
     if (!documentContents || documentContents.length === 0) {
       throw new Error('No document contents found');
     }
 
     console.log(`Processing ${documentContents.length} documents to extract director information...`);
     
-    // Prepare a single comprehensive prompt with all document contents
-    let prompt = `I need to extract complete director information from the following company documents, identifying ALL variations and discrepancies across documents.\n\n`;
+    // Define company-specific requirements
+    const companyRequirements = getCompanyRequirements(companyName);
+    
+    // Prepare a comprehensive prompt with company requirements and all document contents
+    let prompt = `I need to extract complete director information from the following company documents, identifying ALL variations and discrepancies across documents.
+
+COMPANY: ${companyName}
+
+DOCUMENT REQUIREMENTS FOR DIRECTORS:
+${formatCompanyRequirements(companyRequirements)}
+
+`;
     
     // Include all document contents in the prompt
     documentContents.forEach((doc, index) => {
       prompt += `DOCUMENT ${index + 1}: ${doc.document.name} (ID: ${doc.document.id})\n`;
-      prompt += `Document Type: ${categorizeDocumentType(doc.document.name)}\n`;
       
       // For large documents, truncate content to avoid token limits
       let content = doc.content;
@@ -192,6 +218,17 @@ const extractDirectorInfo = new Step({
        - ALL Telephone Numbers found across documents
        - ALL Email Addresses found across documents
     
+    DOCUMENT CLASSIFICATION REQUIREMENTS:
+    For EACH piece of information extracted, you MUST intelligently classify the source document into one of these categories:
+    - "identification_document": Official government ID documents like passports, NRIC, FIN cards
+    - "address_proof": Documents proving residence like utility bills, phone bills, bank statements
+    - "company_registry": Official company registration documents
+    - "appointment_letter": Letters or documents formally appointing directors
+    - "profile_document": Company profiles or informational documents
+    - "other_document": Any other document type
+    
+    Pay special attention to classifying documents that fulfill the company's requirements.
+    
     CRITICAL RULES:
     - SAME PERSON, DIFFERENT NAMES: A person may appear with different names (e.g., "John Doe" vs "Johnathan Doe")
     - SAME PERSON, MULTIPLE ID NUMBERS: A person may have different ID numbers across documents
@@ -213,12 +250,12 @@ const extractDirectorInfo = new Step({
         "email_address": "Primary email address",
         "sources": {
           "full_name": [
-            {"documentId": 1, "documentName": "Doc Name", "value": "Name as appears in this document"},
-            {"documentId": 3, "documentName": "Another Doc", "value": "Different name found in this document"}
+            {"documentId": 1, "documentName": "Doc Name", "value": "Name as appears in this document", "documentCategory": "identification_document"},
+            {"documentId": 3, "documentName": "Another Doc", "value": "Different name found in this document", "documentCategory": "company_registry"}
           ],
           "id_number": [
-            {"documentId": 2, "documentName": "Doc Name", "value": "ID123456"},
-            {"documentId": 4, "documentName": "Another Doc", "value": "Different ID number"}
+            {"documentId": 2, "documentName": "Doc Name", "value": "ID123456", "documentCategory": "identification_document"},
+            {"documentId": 4, "documentName": "Another Doc", "value": "Different ID number", "documentCategory": "other_document"}
           ],
           "id_type": [ ... ],
           "nationality": [ ... ],
@@ -231,6 +268,7 @@ const extractDirectorInfo = new Step({
     
     IMPORTANT: 
     - Include ALL variations found across documents in the appropriate sources arrays.
+    - For each source, you MUST include a documentCategory field with your assessment of document type
     - Return ONLY the raw JSON array. Do not include any explanations, markdown, or code blocks.
     - Your response should start with "[" and end with "]".
     `;
@@ -292,7 +330,8 @@ const extractDirectorInfo = new Step({
               director.sources.id_type = [{
                 documentId: 0,
                 documentName: "Inferred from ID format",
-                value: director.id_type
+                value: director.id_type,
+                documentCategory: "system_inference"
               }];
             }
           }
@@ -343,7 +382,8 @@ const extractDirectorInfo = new Step({
           full_name: [{
             documentId: 0,
             documentName: "Error",
-            value: "Failed to extract directors from documents"
+            value: "Failed to extract directors from documents",
+            documentCategory: "error"
           }],
           id_number: [],
           id_type: [],
@@ -437,7 +477,7 @@ const storeDirectorInfo = new Step({
             residential_address: director?.residential_address || null,
             telephone_number: director?.telephone_number || null,
             email_address: director?.email_address || null,
-            // Store all sources
+            // Store all sources including document categories
             full_name_source: JSON.stringify(director?.sources?.full_name || []),
             id_number_source: JSON.stringify(director?.sources?.id_number || []),
             id_type_source: JSON.stringify(director?.sources?.id_type || []),
@@ -510,21 +550,6 @@ const storeDirectorInfo = new Step({
   },
 });
 
-// Helper function to categorize document type
-function categorizeDocumentType(documentName: string) {
-  const lowerName = documentName.toLowerCase();
-  
-  if (lowerName.includes('passport')) return 'Passport Document';
-  if (lowerName.includes('national id') || lowerName.includes('nric') || lowerName.includes('id document')) return 'National ID Document';
-  if (lowerName.includes('registry')) return 'Registry Document';
-  if (lowerName.includes('appointment')) return 'Appointment Document';
-  if (lowerName.includes('address') || lowerName.includes('proof')) return 'Address Verification';
-  if (lowerName.includes('profile')) return 'Company Profile';
-  if (lowerName.includes('shareholder')) return 'Shareholding Document';
-  
-  return 'Other Document';
-}
-
 // Helper function to infer ID type from number format and nationality
 function inferIdTypeFromNumber(idNumber: any, nationality: any) {
   if (!idNumber) return null;
@@ -551,6 +576,48 @@ function inferIdTypeFromNumber(idNumber: any, nationality: any) {
   
   // If we can't determine from format
   return 'Unknown ID';
+}
+
+// Helper function to get company-specific requirements
+function getCompanyRequirements(companyName?: string): z.infer<typeof companyRequirementsSchema> {
+  // Default requirements for all companies
+  const defaultRequirements = {
+    id_document_types: ['passport', 'nric', 'fin'],
+    address_document_types: ['utility_bill', 'phone_bill', 'bank_statement', 'government_id'],
+    phone_requirement: '+65 number for local directors',
+    email_required: true
+  };
+  
+  // You could implement company-specific overrides here
+  // For example, from a database lookup based on company name
+  
+  if (companyName === 'Truffles') {
+    // Specific requirements for Truffles company
+    return {
+      id_document_types: ['passport', 'nric', 'fin'],
+      address_document_types: ['utility_bill', 'phone_bill', 'government_id_with_address'],
+      phone_requirement: '+65 number for local directors',
+      email_required: true
+    };
+  }
+  
+  return defaultRequirements;
+}
+
+// Helper function to format company requirements for the prompt
+function formatCompanyRequirements(requirements: z.infer<typeof companyRequirementsSchema>): string {
+  let formatted = '';
+  
+  formatted += '1. Identification Document: ' + requirements.id_document_types.join(', ') + '\n';
+  formatted += '2. Proof of Address: ' + requirements.address_document_types.join(', ') + '\n';
+  if (requirements.phone_requirement) {
+    formatted += '3. Telephone Number: ' + requirements.phone_requirement + '\n';
+  }
+  if (requirements.email_required) {
+    formatted += '4. Email Address: Required\n';
+  }
+  
+  return formatted;
 }
 
 // Create and commit the director extraction workflow

@@ -10,6 +10,14 @@ const companySchema = z.object({
   name: z.string().describe('The company name to verify director information for'),
 });
 
+// Company requirements schema
+const companyRequirementsSchema = z.object({
+  id_document_types: z.array(z.string()),
+  address_document_types: z.array(z.string()),
+  phone_requirement: z.string().optional(),
+  email_required: z.boolean().optional(),
+});
+
 // Director information schema with verification fields
 const directorInfoSchema = z.object({
   id: z.number(),
@@ -28,36 +36,43 @@ const directorInfoSchema = z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
+      documentCategory: z.string().optional(),
     })).optional(),
     id_number: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
+      documentCategory: z.string().optional(),
     })).optional(),
     id_type: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
+      documentCategory: z.string().optional(),
     })).optional(),
     nationality: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
+      documentCategory: z.string().optional(),
     })).optional(),
     residential_address: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
+      documentCategory: z.string().optional(),
     })).optional(),
     telephone_number: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
+      documentCategory: z.string().optional(),
     })).optional(),
     email_address: z.array(z.object({
       documentId: z.number(),
       documentName: z.string(),
       value: z.string(),
+      documentCategory: z.string().optional(),
     })).optional(),
   }).optional(),
 });
@@ -231,6 +246,7 @@ const verifyDirectors = new Step({
   outputSchema: workflowResultSchema,
   execute: async ({ context }) => {
     const directorData = context?.getStepResult(fetchDirectors);
+    const companyName = context?.getStepResult<{ name: string }>('trigger')?.name;
     
     if (!directorData || !directorData.directors || directorData.directors.length === 0) {
       console.log('No directors to verify');
@@ -245,6 +261,10 @@ const verifyDirectors = new Step({
         summary: 'No directors to verify',
       };
     }
+
+    // Get company-specific requirements
+    const companyRequirements = getCompanyRequirements(companyName);
+    console.log(`Using verification requirements for company ${companyName}:`, companyRequirements);
 
     const verificationResults: Array<z.infer<typeof verificationResultSchema>> = [];
     let verified = 0;
@@ -275,6 +295,9 @@ const verifyDirectors = new Step({
         discrepancies = [];
       }
       
+      // Evaluate document requirements based on AI-classified documents
+      const requirementEvaluation = evaluateDocumentRequirements(director, companyRequirements);
+      
       // If there are discrepancies, evaluate if they're genuine
       const genuineDiscrepancies: GenuineDiscrepancy[] = [];
       const resolvedDiscrepancies: ResolvedDiscrepancy[] = [];
@@ -285,10 +308,22 @@ const verifyDirectors = new Step({
         
         Director: ${director.full_name || 'Unknown'}
         
+        Company Requirements:
+        ${formatCompanyRequirements(companyRequirements)}
+        
         Discrepancies:
         ${JSON.stringify(discrepancies, null, 2)}
         
+        Document sources information:
+        ${JSON.stringify(director.sources || {}, null, 2)}
+        
         For each discrepancy, determine if it's a genuine issue (different information) or just a variation (same information in different format).
+        Consider the document categories when evaluating discrepancies. Pay special attention to:
+        
+        1. ID verification requires one of these document types: ${companyRequirements.id_document_types.join(', ')}
+        2. Address verification requires one of these document types: ${companyRequirements.address_document_types.join(', ')}
+        3. ${companyRequirements.phone_requirement || 'Phone number is required'}
+        4. ${companyRequirements.email_required ? 'Email address is required' : 'Email address is optional'}
         
         Examples of variations that are NOT genuine discrepancies:
         1. "American" vs "USA" (same nationality, different format)
@@ -373,6 +408,11 @@ const verifyDirectors = new Step({
         return !value || value === '' || value === null;
       });
       
+      // Add any missing document requirements to the missing fields
+      if (requirementEvaluation.missingRequirements.length > 0) {
+        missingFields.push(...requirementEvaluation.missingRequirements);
+      }
+      
       // Determine verification status
       let verificationStatus: 'verified' | 'notverified' | 'pending';
       let kycStatus = null;
@@ -387,10 +427,10 @@ const verifyDirectors = new Step({
         });
         notverified++;
       } else if (missingFields.length > 0) {
-        // No genuine discrepancies but some required fields are missing - mark as pending
+        // No genuine discrepancies but some required fields or documents are missing - mark as pending
         verificationStatus = 'pending';
         kycStatus = JSON.stringify({
-          status: 'Required fields missing',
+          status: 'Required fields or documents missing',
           missing_fields: missingFields
         });
         pending++;
@@ -438,6 +478,9 @@ const verifyDirectors = new Step({
     - Verified: ${verified}
     - Pending (incomplete information): ${pending}
     - Not Verified (discrepancies found): ${notverified}
+    
+    Company Requirements:
+    ${formatCompanyRequirements(companyRequirements)}
     `;
     
     return {
@@ -463,4 +506,98 @@ const directorVerificationWorkflow = new Workflow({
 
 directorVerificationWorkflow.commit();
 
-export { directorVerificationWorkflow }; 
+export { directorVerificationWorkflow };
+
+function getCompanyRequirements(companyName?: string): z.infer<typeof companyRequirementsSchema> {
+  // Default requirements for all companies, It can be overriden using a having those requirements in a database and fetching using api call in future cases
+  const defaultRequirements = {
+    id_document_types: ['passport', 'nric', 'fin', 'identification_document'],
+    address_document_types: ['utility_bill', 'phone_bill', 'bank_statement', 'government_id', 'address_proof'],
+    phone_requirement: '+65 number for local directors',
+    email_required: true
+  };  
+  return defaultRequirements;
+}
+
+// Helper function to format company requirements for the prompt
+function formatCompanyRequirements(requirements: z.infer<typeof companyRequirementsSchema>): string {
+  let formatted = '';
+  
+  formatted += '1. Identification Document: ' + requirements.id_document_types.join(', ') + '\n';
+  formatted += '2. Proof of Address: ' + requirements.address_document_types.join(', ') + '\n';
+  if (requirements.phone_requirement) {
+    formatted += '3. Telephone Number: ' + requirements.phone_requirement + '\n';
+  }
+  if (requirements.email_required) {
+    formatted += '4. Email Address: Required\n';
+  }
+  
+  return formatted;
+}
+
+// Helper function to evaluate if director has all required document types based on AI classification
+function evaluateDocumentRequirements(director: Director, requirements: z.infer<typeof companyRequirementsSchema>): {
+  missingRequirements: string[];
+  hasIdDocument: boolean;
+  hasAddressDocument: boolean;
+  hasLocalPhoneNumber: boolean;
+  hasEmail: boolean;
+} {
+  const missingRequirements: string[] = [];
+  let hasIdDocument = false;
+  let hasAddressDocument = false;
+  let hasLocalPhoneNumber = false;
+  let hasEmail = false;
+  
+  // Check for ID document using AI-classified document categories
+  if (director.sources?.id_number?.length) {
+    const idSources = director.sources.id_number;
+    hasIdDocument = idSources.some(source => {
+      const docCategory = source.documentCategory?.toLowerCase() || '';
+      return requirements.id_document_types.some(type => docCategory.includes(type.toLowerCase()));
+    });
+  }
+  
+  // Check for address verification document using AI-classified document categories
+  if (director.sources?.residential_address?.length) {
+    const addressSources = director.sources.residential_address;
+    hasAddressDocument = addressSources.some(source => {
+      const docCategory = source.documentCategory?.toLowerCase() || '';
+      return requirements.address_document_types.some(type => docCategory.includes(type.toLowerCase()));
+    });
+  }
+  
+  // Check for local Singapore phone number
+  if (director.telephone_number) {
+    hasLocalPhoneNumber = director.telephone_number.includes('+65') || 
+                          director.telephone_number.startsWith('65');
+  }
+  
+  // Check for email
+  hasEmail = !!director.email_address;
+  
+  // Build missing requirements list
+  if (!hasIdDocument) {
+    missingRequirements.push('identification_document');
+  }
+  
+  if (!hasAddressDocument) {
+    missingRequirements.push('address_verification_document');
+  }
+  
+  if (!hasLocalPhoneNumber && requirements.phone_requirement?.includes('+65')) {
+    missingRequirements.push('local_singapore_phone');
+  }
+  
+  if (!hasEmail && requirements.email_required) {
+    missingRequirements.push('email_address');
+  }
+  
+  return {
+    missingRequirements,
+    hasIdDocument,
+    hasAddressDocument,
+    hasLocalPhoneNumber,
+    hasEmail
+  };
+} 
