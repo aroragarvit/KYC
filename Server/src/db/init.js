@@ -17,7 +17,8 @@ function initializeDatabase() {
     db.exec(`
       CREATE TABLE IF NOT EXISTS companies (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT UNIQUE NOT NULL
+        name TEXT UNIQUE NOT NULL,
+        kyc_status TEXT DEFAULT 'pending'
       );
     `);
 
@@ -78,7 +79,7 @@ function initializeDatabase() {
 
     // Insert Truffles company
     const insertCompany = db.prepare(
-      "INSERT INTO companies (name) VALUES (?) RETURNING id"
+      "INSERT INTO companies (name) VALUES (?) RETURNING id",
     );
     const trufflesCompanyId = insertCompany.get("Truffles").id;
 
@@ -114,10 +115,10 @@ function initializeDatabase() {
 
     // Insert documents that exist and link to company
     const insertDocument = db.prepare(
-      "INSERT INTO documents (name, file_path) VALUES (?, ?) RETURNING id"
+      "INSERT INTO documents (name, file_path) VALUES (?, ?) RETURNING id",
     );
     const linkDocToCompany = db.prepare(
-      "INSERT INTO company_documents (company_id, document_id) VALUES (?, ?)"
+      "INSERT INTO company_documents (company_id, document_id) VALUES (?, ?)",
     );
 
     let foundDocs = 0;
@@ -133,7 +134,9 @@ function initializeDatabase() {
 
         // Link document to Truffles company
         linkDocToCompany.run(trufflesCompanyId, documentId);
-        console.log(`Added document to database: ${docName} (ID: ${documentId})`);
+        console.log(
+          `Added document to database: ${docName} (ID: ${documentId})`,
+        );
         foundDocs++;
       } else {
         missingDocs.push(docName);
@@ -177,16 +180,14 @@ function initializeDatabase() {
 
     console.log("\nAvailable API endpoints:");
     console.log(
-      `- Get all documents: curl http://localhost:3000/companies/Truffles/documents`
+      `- Get all documents: curl http://localhost:3000/companies/Truffles/documents`,
     );
     console.log(
-      `- Read document content: curl http://localhost:3000/documents/read?id=DOCUMENT_ID`
+      `- Read document content: curl http://localhost:3000/documents/read?id=DOCUMENT_ID`,
     );
     console.log(`\nExample to read a document:`);
     if (docxFilesFound.length > 0) {
-      console.log(
-        `curl "http://localhost:3000/documents/read?id=1"`
-      );
+      console.log(`curl "http://localhost:3000/documents/read?id=1"`);
     }
 
     db.close();
