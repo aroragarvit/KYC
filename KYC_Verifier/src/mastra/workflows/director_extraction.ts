@@ -2,8 +2,6 @@ import { Step, Workflow } from '@mastra/core/workflows';
 import { z } from 'zod';
 import axios from 'axios';
 import { documentAnalysisAgent } from '../agents';
-import * as fs from 'fs';
-import * as path from 'path';
 
 // Define schemas for input and output data
 const companySchema = z.object({
@@ -630,6 +628,10 @@ const directorExtractionWorkflow = new Workflow({
   .then(extractDirectorInfo)
   .then(storeDirectorInfo);
 
+// Handle errors gracefully
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 directorExtractionWorkflow.commit();
 
 export { directorExtractionWorkflow };

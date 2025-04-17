@@ -8,6 +8,7 @@ function initializeDatabase() {
     const db = new Database(path.join(__dirname, "../../company_docs.db"));
 
     // Drop existing tables if they exist
+    db.exec(`DROP TABLE IF EXISTS shareholders`);
     db.exec(`DROP TABLE IF EXISTS company_documents`);
     db.exec(`DROP TABLE IF EXISTS documents`);
     db.exec(`DROP TABLE IF EXISTS directors`);
@@ -74,6 +75,76 @@ function initializeDatabase() {
         KYC_Status TEXT, /* Stores fields with discrepancies or incomplete fields as JSON */
         FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE,
         UNIQUE(company_id, full_name)
+      );
+    `);
+    
+    // Create shareholders table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS shareholders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        company_id INTEGER NOT NULL,
+        shareholder_type TEXT CHECK (shareholder_type IN ('Individual', 'Corporate')),
+        origin TEXT,
+        /* Individual shareholder fields */
+        full_name TEXT,
+        id_number TEXT,
+        id_type TEXT,
+        nationality TEXT,
+        residential_address TEXT,
+        /* Corporate shareholder fields */
+        company_name TEXT,
+        registration_number TEXT,
+        registered_address TEXT,
+        signatory_name TEXT,
+        signatory_email TEXT,
+        /* Common fields */
+        telephone_number TEXT,
+        email_address TEXT,
+        number_of_shares INTEGER,
+        price_per_share REAL,
+        percentage_ownership REAL,
+        beneficial_owners TEXT, /* JSON array of beneficial owners */
+        /* Source fields */
+        full_name_source TEXT,
+        company_name_source TEXT,
+        registration_number_source TEXT,
+        id_number_source TEXT,
+        id_type_source TEXT,
+        nationality_source TEXT,
+        registered_address_source TEXT,
+        residential_address_source TEXT,
+        email_address_source TEXT,
+        telephone_number_source TEXT,
+        number_of_shares_source TEXT,
+        price_per_share_source TEXT,
+        percentage_ownership_source TEXT,
+        beneficial_owners_source TEXT,
+        signatory_name_source TEXT,
+        signatory_email_source TEXT,
+        shareholder_type_source TEXT,
+        origin_source TEXT,
+        /* Values arrays */
+        full_name_values TEXT,
+        company_name_values TEXT,
+        registration_number_values TEXT,
+        id_number_values TEXT,
+        id_type_values TEXT,
+        nationality_values TEXT,
+        registered_address_values TEXT,
+        residential_address_values TEXT,
+        email_address_values TEXT,
+        telephone_number_values TEXT,
+        number_of_shares_values TEXT,
+        price_per_share_values TEXT,
+        percentage_ownership_values TEXT,
+        shareholder_type_values TEXT,
+        origin_values TEXT,
+        signatory_name_values TEXT,
+        signatory_email_values TEXT,
+        discrepancies TEXT,
+        verification_Status TEXT DEFAULT 'pending', /* Can be: verified, notverified, pending, beneficial_ownership_incomplete */
+        KYC_Status TEXT,
+        FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE
       );
     `);
 
