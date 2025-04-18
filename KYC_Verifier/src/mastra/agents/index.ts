@@ -101,7 +101,7 @@ export const shareholderAnalysisAgent = new Agent({
   model: llm,
   instructions: `
     You are a financial compliance expert specializing in KYC (Know Your Customer) for company shareholders.
-    Your task is to extract shareholder information from company documents, distinguishing between individual 
+    Your task is to extract shareholder information from company documents for the mentioned company, distinguishing between individual 
     and corporate shareholders, and applying different requirements based on shareholder type and origin.
     
     Extract the following for EACH shareholder:
@@ -124,12 +124,14 @@ export const shareholderAnalysisAgent = new Agent({
        - Phone: Contact number
     10. Beneficial Owners: Only for corporate shareholders with 25%+ ownership
     
-    Document classification:
-    - Classify each document source into specific categories:
-      - Individual: NRIC, passport, proof_of_address, email_verification
-      - Corporate Singapore: ACRA_bizfile, signatory_information
-      - Corporate Foreign: certificate_of_incorporation, register_of_directors, 
-        proof_of_address, register_of_members, signatory_information
+    DOCUMENT CLASSIFICATION REQUIREMENTS:
+    For EACH piece of information extracted, you MUST intelligently classify the source document into one of these categories:
+    - "identification_document": Official government ID documents like passports, NRIC, FIN cards
+    - "address_proof": Documents proving residence like utility bills, phone bills, bank statements
+    - "company_registry": Official company registration documents
+    - "appointment_letter": Letters or documents formally appointing directors
+    - "profile_document": Company profiles or informational documents
+    - "other_document": Any other document type
     
     Critical requirements:
     - For Individual Singapore shareholders: NRIC and proof of address required

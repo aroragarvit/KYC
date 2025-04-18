@@ -206,12 +206,15 @@ ${formatShareholderRequirements(companyRequirements)}
       prompt += `---------- END OF DOCUMENT ${index + 1} ----------\n\n`;
     });
     
+
+    // This Prompt is for truffles Ai Pvt Ltd  but It will be dynamic and stored in database for global purposes
+    // company name will be dynamic and stored in database for global purposes
     // Add comprehensive extraction instructions
     prompt += `
-    Your task is to identify ALL shareholders mentioned across these documents, classify them by type (Individual/Corporate) and origin (Singapore/Foreign), and extract all required information.
+    Your task is to identify  shareholders mentioned across these documents for company truffles Ai Pvt Ltd , classify them by type (Individual/Corporate) and origin (Singapore/Foreign), and extract all required information.
     
     EXTRACTION REQUIREMENTS:
-    1. Identify ALL shareholders mentioned in ANY document
+    1. Identify ALL shareholders mentioned in ANY document For truffles Ai Pvt Ltd (need to make sure that they are direct shareholders and not indirect ones) CRITICAL POINT
     2. Classify each shareholder as either:
        - Individual Singapore shareholder
        - Individual Foreign shareholder
@@ -244,8 +247,15 @@ ${formatShareholderRequirements(companyRequirements)}
       (individuals who own 25%+ of the corporate shareholder)
     
     DOCUMENT CLASSIFICATION REQUIREMENTS:
-    For EACH piece of information extracted, classify the source document into one of these categories:
+    For EACH piece of information extracted, you MUST intelligently classify the source document into one of these categories:
+    - "identification_document": Official government ID documents like passports, NRIC, FIN cards
+    - "address_proof": Documents proving residence like utility bills, phone bills, bank statements
+    - "company_registry": Official company registration documents
+    - "appointment_letter": Letters or documents formally appointing directors
+    - "profile_document": Company profiles or informational documents
+    - "other_document": Any other document type
     
+    Rewuirements for shareholder type:
     INDIVIDUAL SINGAPORE:
     - "nric": NRIC document
     - "proof_of_address": Utility bill, phone bill, etc.
@@ -258,14 +268,14 @@ ${formatShareholderRequirements(companyRequirements)}
     
     CORPORATE SINGAPORE:
     - "acra_bizfile": ACRA Bizfile profile
-    - "signatory_information": Document with signatory details
+    - "signatory_information": Document with signatory details(company profile document)
     
     CORPORATE FOREIGN:
     - "certificate_of_incorporation": Certificate of incorporation/incumbency
     - "register_of_directors": Register of directors document
     - "proof_of_address": Document proving company address
     - "register_of_members": Register of members/shareholders
-    - "signatory_information": Document with signatory details
+    - "signatory_information": Document with signatory details(company profile document)
     
     Beneficial Ownership:
     - If a corporate shareholder owns 25% or more of the company shares

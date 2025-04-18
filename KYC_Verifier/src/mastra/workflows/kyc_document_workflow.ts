@@ -1,6 +1,8 @@
 import { Step, Workflow } from '@mastra/core/workflows';
 import { z } from 'zod';
 import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
 import { documentClassificationAgent, kycAnalysisAgent } from '../agents/kyc';
 // Define schemas for input and output data
 const workflowTriggerSchema = z.object({
@@ -622,8 +624,7 @@ const generateSummaryTables = new Step({
     
     // Write the tables to files
     try {
-      const fs = require('fs');
-      const path = require('path');
+
       const outputDir = path.join(__dirname, '../../output');
       
       // Create output directory if it doesn't exist
