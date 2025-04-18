@@ -7,18 +7,24 @@ const fastifyPlugin = require("fastify-plugin");
 const dbConnector = fastifyPlugin((fastify, options, done) => {
   try {
     const db = new Database(path.join(__dirname, "../company_docs.db"));
+    const kycDb = new Database(path.join(__dirname, "../kyc_data.db"));
 
     // Make the database connection available
     fastify.decorate("db", db);
+    fastify.decorate("kycDb", kycDb);
 
     fastify.addHook("onClose", (instance, done) => {
       if (instance.db) {
         instance.db.close();
       }
+      if (instance.kycDb) {
+        instance.kycDb.close();
+      }
       done();
     });
 
     console.log("SQLite database connected successfully");
+    console.log("KYC database connected successfully");
     done();
   } catch (err) {
     console.error("Error connecting to SQLite database:", err);
@@ -31,7 +37,7 @@ fastify.register(dbConnector);
 
 // Register routes without prefixes
 fastify.register(require("./routes/documents"));
-
+fastify.register(require("./routes/kyc_routes"));
 // Home route with API documentation
 fastify.get("/", async (request, reply) => {
   return {

@@ -6,7 +6,8 @@ import { directorExtractionWorkflow } from './workflows/director_extraction';
 import { directorVerificationWorkflow } from './workflows/director_verification';
 import { shareholderExtractionWorkflow } from './workflows/shareholder_extraction';
 import { shareholderVerificationWorkflow } from './workflows/shareholder_verification';
+import { kycDocumentWorkflow } from './workflows/kyc_document_workflow';
 export const mastra = new Mastra({
-  workflows: { weatherWorkflow, directorVerificationWorkflow, directorExtractionWorkflow, shareholderExtractionWorkflow, shareholderVerificationWorkflow },
+  workflows: { weatherWorkflow, directorVerificationWorkflow, directorExtractionWorkflow, shareholderExtractionWorkflow, shareholderVerificationWorkflow, kycDocumentWorkflow },
   agents: { weatherAgent },
 });

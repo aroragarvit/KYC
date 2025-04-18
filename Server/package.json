@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "init-db": "node src/db/init.js"
+    "init-db": "node src/db/init.js",
+    "init-kyc-db": "node src/db/kyc_init.js"
   },
   "dependencies": {
     "@fastify/cors": "^8.3.0",
