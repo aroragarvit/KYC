@@ -73,10 +73,10 @@ const companySchema = z.object({
   registration_number: z.record(z.string(), sourceSchema).optional(),
   jurisdiction: z.record(z.string(), sourceSchema).optional(),
   address: z.record(z.string(), sourceSchema).optional(),
-  corporate_roles: z.record(z.string(), z.string()).optional(),
   directors: z.array(z.string()).optional(),
   shareholders: z.array(z.string()).optional(),
-  ownership_information: z.record(z.string(), sourceSchema).optional(),
+  company_activities: z.record(z.string(), sourceSchema).optional(),
+  shares_issued: z.record(z.string(), sourceSchema).optional(),
   price_per_share: z.record(z.string(), sourceSchema).optional(),
   discrepancies: z.array(
     z.object({
@@ -355,7 +355,7 @@ const extractInformation = new Step({
       - Addresses with sources
       - Email addresses with sources
       - Phone numbers with sources
-      - Roles in companies with sources
+      - Roles in companies with sources, (can have multiple roles as well)
       - Shares owned (if any) with sources
       - Price per share (if available) with sources
       
@@ -364,11 +364,21 @@ const extractInformation = new Step({
       - Registration numbers with sources
       - Jurisdictions/countries with sources
       - Addresses with sources
-      - Corporate roles (subsidiary, parent company, etc.) with sources (That company is subsidiary or parent of what company)
       - Directors with sources
-      - Shareholders with sources
-      - Ownership information with sources (Who owns that company)
+      - Company activities (IMPORTANT: Always extract business activities like "Investment Holding", "Technology Services", etc.)
+      - Shareholders with detailed breakdown (IMPORTANT: Extract ALL shareholders with their ownership percentages):
+        - For each shareholder, include their name and ownership percentage
+        - Note if they are beneficial owners
+        - If a company owns shares in another company (subsidiaries), make sure to capture this relationship
+        - Include both direct shareholders and ultimate beneficial owners
+      - Shares issued with sources (total number of shares issued by the company)
       - Price per share (if available) with sources
+
+      ## IMPORTANT EXTRACTION REQUIREMENTS:
+      - Pay special attention to company activities - this is often listed as "Principal Business Activities", "Nature of Business", etc.
+      - For shareholding information, look for sections like "Beneficial Owners", "Ultimate Beneficial Owners", "Subsidiaries", etc.
+      - If a company has subsidiaries (e.g., "Company X owns 100% of Company Y"), this should be captured in the shareholders field for Company Y.
+      - When documents refer to ownership percentages, ALWAYS extract these details.
       
       ## Documents to Analyze:
     `;
@@ -390,7 +400,7 @@ const extractInformation = new Step({
       - Maintain meticulous source tracking. For each piece of information, record which document it came from.
       - Handle conflicting information by including all versions with their respective sources.
       - If information is implied rather than explicitly stated, note this.
-      - Also take document name in consideration while gathering all that information, like if a document name is director reqsitry for some company then that document may contain information about directors of that company. So keep document names in consideration also.
+      - Also take document name in consideration while gathering all that information, like if a document name is director registry for some company then that document may contain information about directors of that company. So keep document names in consideration also.
       
       ## Output Format:
       Return ONLY a JSON object with the following structure:
@@ -406,7 +416,7 @@ const extractInformation = new Step({
             "emails": {"Document 3 Name": {"documentId": 3, "documentName": "Doc Name", "documentType": "company_registry", "value": "person@example.com"}},
             "phones": {"Document 3 Name": {"documentId": 3, "documentName": "Doc Name", "documentType": "company_registry", "value": "+1234567890"}},
             "roles": {"Company Name": "Director"},
-            "shares_owned": {"Document 4 Name": {"documentId": 4, "documentName": "Doc Name", "documentType": "shareholder_registry", "value": "1000 shares"}}
+            "shares_owned": {"Document 4 Name": {"documentId": 4, "documentName": "Doc Name", "documentType": "shareholder_registry", "companyName": "xyz company","value": "1000 shares (60%)"}}
           }
         ],
         "companies": [
@@ -415,10 +425,10 @@ const extractInformation = new Step({
             "registration_number": {"Document 3 Name": {"documentId": 3, "documentName": "Doc Name", "documentType": "company_registry", "value": "REG123456"}},
             "jurisdiction": {"Document 3 Name": {"documentId": 3, "documentName": "Doc Name", "documentType": "company_registry", "value": "Singapore"}},
             "address": {"Document 3 Name": {"documentId": 3, "documentName": "Doc Name", "documentType": "company_registry", "value": "123 Business St"}},
-            "corporate_roles": {"Parent Company": "Subsidiary"},
             "directors": ["Director 1", "Director 2"],
-            "shareholders": ["Shareholder 1", "Shareholder 2"],
-            "ownership_information": {"Document 4 Name": {"documentId": 4, "documentName": "Doc Name", "documentType": "shareholder_registry", "value": "100% owned by Parent Co"}}
+            "shareholders": ["Alice Tan (60%)", "Michael Zhou (40%)"],
+            "company_activities": {"Document 3 Name": {"documentId": 3, "documentName": "Doc Name", "documentType": "company_profile", "value": "Investment Holding"}},
+            "shares_issued": {"Document 4 Name": {"documentId": 4, "documentName": "Doc Name", "documentType": "shareholder_registry", "value": "1000 shares"}}
           }
         ]
       }
@@ -608,7 +618,7 @@ const storeInformation = new Step({
 async function processDirectorsForCompany(company) {
   console.log(`\n=== Processing directors for company: ${company.company_name} ===\n`);
   
-  // Log company details table
+  // Log company details table with verification status
   console.log("COMPANY DETAILS TABLE");
   console.log("===================");
   console.log(`a. Intended Company Name: ${company.company_name}`);
@@ -636,10 +646,6 @@ async function processDirectorsForCompany(company) {
   }
   console.log(`e. Intended Registered Address: ${registeredAddress}`);
   
-  console.log(`f. Financial Year End: 31/12/${new Date().getFullYear()}`);
-  console.log(`g. Constitution to be Adopted: (i) the model Constitution in the Companies Act in force from time to time`);
-  console.log("\n");
-  
   // Find relevant individuals who are directors of this company
   const directorNames = company.directors || [];
   if (directorNames.length === 0) {
@@ -647,191 +653,150 @@ async function processDirectorsForCompany(company) {
     return;
   }
   
-  // Print directors table header
-  console.log("DIRECTORS TABLE");
+  // Print directors table header with updated fields
+  console.log("\nDIRECTORS TABLE");
   console.log("==============");
-  console.log("| Name | ID No. | ID Type | Nationality | Residential Address | Tel. No. | Email Address | Requirements Status |");
-  console.log("|------|---------|----------|-------------|-------------------|----------|---------------|-------------------|");
+  console.log("| Name (Source) | ID No. (Source) | ID Type (Source) | Nationality (Source) | Residential Address (Source) | Tel. No. (Source) | Email Address (Source) | Verification Status | KYC Status |");
+  console.log("|---------------|-----------------|------------------|--------------------|-----------------------------|------------------|---------------------|-------------------|-------------|");
   
-  // Try to fetch all individuals
+  let companyVerificationStatus = "verified";
+  
   try {
     const response = await axios.get('http://localhost:3000/kyc/individuals');
     const allIndividuals = response.data.individuals || [];
     
     for (const directorName of directorNames) {
-      // Find the director in the fetched individuals
       const director = allIndividuals.find(ind => ind.full_name === directorName);
       
       if (!director) {
-        console.log(`| ${directorName} | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | INCOMPLETE |`);
+        console.log(`| ${directorName} (Unknown) | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | pending | Missing all required information |`);
+        companyVerificationStatus = "pending";
         continue;
       }
       
-      // Extract information from director data
-      const idNumber = getFirstValue(director.id_numbers);
-      const idType = getFirstValue(director.id_types);
-      const nationality = getFirstValue(director.nationalities);
-      const address = getFirstValue(director.addresses);
-      const phone = getFirstValue(director.phones);
-      const email = getFirstValue(director.emails);
+      // Extract information and sources
+      const idInfo = getValueAndSource(director.id_numbers);
+      const idTypeInfo = getValueAndSource(director.id_types);
+      const nationalityInfo = getValueAndSource(director.nationalities);
+      const addressInfo = getValueAndSource(director.addresses);
+      const phoneInfo = getValueAndSource(director.phones);
+      const emailInfo = getValueAndSource(director.emails);
       
-      // Check requirements
-      const requirements = [];
-      if (!idNumber || !idType) requirements.push("ID Document missing");
-      if (!address) requirements.push("Proof of address missing");
-      if (!phone) requirements.push("Phone number missing");
-      if (nationality?.toLowerCase().includes("singapore") && !phone?.includes("+65")) {
-        requirements.push("Local phone number required");
-      }
-      if (!email) requirements.push("Email missing");
+      // Check for document types in sources
+      const hasIdDocument = checkDocumentTypeExists(director, ['identity_document', 'nric', 'passport', 'fin']);
+      const hasAddressProof = checkDocumentTypeExists(director, ['proof_of_address']);
       
-      const requirementsStatus = requirements.length === 0 ? "COMPLETE" : `INCOMPLETE (${requirements.join(", ")})`;
+      // Determine verification status and KYC status
+      let verificationStatus = "verified";
+      let kycStatus = [];
       
-      // Log director information
-      console.log(
-        `| ${director.full_name} | ${idNumber || "Missing"} | ${idType || "Missing"} | ` +
-        `${nationality || "Missing"} | ${address || "Missing"} | ${phone || "Missing"} | ` +
-        `${email || "Missing"} | ${requirementsStatus} |`
-      );
-      
-      // If there are discrepancies, log them
+      // Check for discrepancies
       if (director.discrepancies && director.discrepancies.length > 0) {
-        console.log("\nDiscrepancies found for", director.full_name);
+        verificationStatus = "not_verified";
         director.discrepancies.forEach(d => {
-          console.log(`- ${d.field}: ${d.values.join(" vs ")}`);
-          console.log(`  Sources: ${d.sources.join(", ")}`);
+          kycStatus.push(`Discrepancy in ${d.field}: ${d.values.join(" vs ")} (Sources: ${d.sources.join(", ")})`);
         });
+      } else {
+        // Check for missing requirements
+        const missingRequirements = [];
+        
+        if (!hasIdDocument) {
+          missingRequirements.push("Missing identification document");
+        }
+        if (!hasAddressProof) {
+          missingRequirements.push("Missing proof of address");
+        }
+        if (!phoneInfo.value) {
+          missingRequirements.push("Missing telephone number");
+        } else if (nationalityInfo.value?.toLowerCase().includes("singapore") && !phoneInfo.value.includes("+65")) {
+          missingRequirements.push("Local (+65) phone number required for Singapore director");
+        }
+        if (!emailInfo.value) {
+          missingRequirements.push("Missing email address");
+        }
+        
+        if (missingRequirements.length > 0) {
+          verificationStatus = "pending";
+          kycStatus = missingRequirements;
+        }
       }
+      
+      // Update company verification status if needed
+      if (verificationStatus !== "verified") {
+        companyVerificationStatus = "pending";
+      }
+      
+      // Format the KYC status for display
+      const kycStatusDisplay = kycStatus.length > 0 ? kycStatus.join("; ") : "Complete";
+      
+      // Log director information with sources
+      console.log(
+        `| ${director.full_name} (${getSourceInfo(director.full_name_source)}) | ` +
+        `${idInfo.value || "Missing"} (${idInfo.source}) | ` +
+        `${idTypeInfo.value || "Missing"} (${idTypeInfo.source}) | ` +
+        `${nationalityInfo.value || "Missing"} (${nationalityInfo.source}) | ` +
+        `${addressInfo.value || "Missing"} (${addressInfo.source}) | ` +
+        `${phoneInfo.value || "Missing"} (${phoneInfo.source}) | ` +
+        `${emailInfo.value || "Missing"} (${emailInfo.source}) | ` +
+        `${verificationStatus} | ${kycStatusDisplay} |`
+      );
     }
   } catch (error) {
     console.error("Error fetching individuals:", error);
+    companyVerificationStatus = "pending";
   }
   
+  console.log("\nCompany Verification Status:", companyVerificationStatus);
   console.log("\n=== End of Processing ===\n");
 }
 
-// Helper function to extract first value from sourced data
-function getFirstValue(sourceObj) {
+// Helper function to get both value and source
+function getValueAndSource(sourceObj) {
   if (!sourceObj || Object.keys(sourceObj).length === 0) {
-    return null;
+    return { value: null, source: "No source" };
   }
-  return Object.values(sourceObj)[0]?.value || null;
+  const firstEntry = Object.entries(sourceObj)[0];
+  return {
+    value: firstEntry[1].value,
+    source: `${firstEntry[1].documentType} (${firstEntry[1].documentName})`
+  };
 }
 
-// Step 7: Generate summary tables
-const generateSummaryTables = new Step({
-  id: 'generate-summary-tables',
-  description: 'Generates markdown tables summarizing the extracted information',
-  inputSchema: extractedDataSchema,
-  outputSchema: workflowResultSchema,
-  execute: async ({ context }) => {
-    const extractedData = context?.getStepResult(storeInformation);
-    if (!extractedData) {
-      throw new Error('No stored data found');
-    }
+// Helper function to format source information
+function getSourceInfo(sourceStr) {
+  try {
+    const sources = JSON.parse(sourceStr || '[]');
+    if (sources.length === 0) return "No source";
+    return sources.map(s => s.documentType).join(", ");
+  } catch {
+    return "Invalid source";
+  }
+}
 
-    const documents = context?.getStepResult(fetchDocuments);
-    
-    console.log("Generating summary tables...");
-    
-    // Generate individuals table
-    let individualsTable = "## Master List: Individuals (Detailed View)\n\n";
-    
-    if (extractedData.individuals.length > 0) {
-      // Create header row with all individual names
-      individualsTable += "Feature | " + extractedData.individuals.map(i => i.full_name || "Unknown").join(" | ") + "\n";
-      individualsTable += "--- | " + extractedData.individuals.map(_ => "---").join(" | ") + "\n";
-      
-      // Add rows for each feature
-      individualsTable += generateFeatureRow("Full Name", extractedData.individuals, i => i.full_name || "Unknown");
-      individualsTable += generateFeatureRow("ID Numbers", extractedData.individuals, i => formatSourcedInfo(i.id_numbers));
-      individualsTable += generateFeatureRow("ID Type", extractedData.individuals, i => formatSourcedInfo(i.id_types));
-      individualsTable += generateFeatureRow("Nationalities", extractedData.individuals, i => formatSourcedInfo(i.nationalities));
-      individualsTable += generateFeatureRow("Address", extractedData.individuals, i => formatSourcedInfo(i.addresses));
-      individualsTable += generateFeatureRow("Email", extractedData.individuals, i => formatSourcedInfo(i.emails));
-      individualsTable += generateFeatureRow("Phone", extractedData.individuals, i => formatSourcedInfo(i.phones));
-      individualsTable += generateFeatureRow("Roles", extractedData.individuals, i => formatRoles(i.roles));
-      individualsTable += generateFeatureRow("Shares Owned", extractedData.individuals, i => formatSourcedInfo(i.shares_owned));
-      individualsTable += generateFeatureRow("Price Per Share", extractedData.individuals, i => formatSourcedInfo(i.price_per_share));
-    } else {
-      individualsTable += "*No individuals found in the processed documents.*\n";
-    }
-    
-    // Generate companies table
-    let companiesTable = "## Master List: Companies (Detailed View)\n\n";
-    
-    if (extractedData.companies.length > 0) {
-      // Create header row with all company names
-      companiesTable += "Feature | " + extractedData.companies.map(c => c.company_name || "Unknown").join(" | ") + "\n";
-      companiesTable += "--- | " + extractedData.companies.map(_ => "---").join(" | ") + "\n";
-      
-      // Add rows for each feature
-      companiesTable += generateFeatureRow("Company Name", extractedData.companies, c => c.company_name || "Unknown");
-      companiesTable += generateFeatureRow("Registration Number", extractedData.companies, c => formatSourcedInfo(c.registration_number));
-      companiesTable += generateFeatureRow("Jurisdiction/Country", extractedData.companies, c => formatSourcedInfo(c.jurisdiction));
-      companiesTable += generateFeatureRow("Address", extractedData.companies, c => formatSourcedInfo(c.address));
-      companiesTable += generateFeatureRow("Corporate Roles", extractedData.companies, c => formatRoles(c.corporate_roles));
-      companiesTable += generateFeatureRow("Directors", extractedData.companies, c => formatArray(c.directors));
-      companiesTable += generateFeatureRow("Shareholders", extractedData.companies, c => formatArray(c.shareholders));
-      companiesTable += generateFeatureRow("Ownership Information", extractedData.companies, c => formatSourcedInfo(c.ownership_information));
-      companiesTable += generateFeatureRow("Price Per Share", extractedData.companies, c => formatSourcedInfo(c.price_per_share));
-    } else {
-      companiesTable += "*No companies found in the processed documents.*\n";
-    }
-    
-    // Write the tables to files
-    try {
+// Helper function to check if specific document types exist in sources
+function checkDocumentTypeExists(director, documentTypes) {
+  const allSources = [
+    ...parseSourceArray(director.id_number_source),
+    ...parseSourceArray(director.residential_address_source)
+  ];
+  
+  return allSources.some(source => 
+    documentTypes.some(type => 
+      source.documentType?.toLowerCase().includes(type.toLowerCase())
+    )
+  );
+}
 
-      const outputDir = path.join(__dirname, '../../output');
-      
-      // Create output directory if it doesn't exist
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-      }
-      
-      // Write individual and company tables
-      fs.writeFileSync(path.join(outputDir, 'individuals_table.md'), individualsTable);
-      fs.writeFileSync(path.join(outputDir, 'companies_table.md'), companiesTable);
-      
-      // Write a combined report
-      const combinedReport = `# KYC Document Processing Report
-      
-Date: ${new Date().toISOString().split('T')[0]}
+// Helper function to parse source arrays
+function parseSourceArray(sourceStr) {
+  try {
+    return JSON.parse(sourceStr || '[]');
+  } catch {
+    return [];
+  }
+}
 
-## Processing Summary
-- Total Documents Processed: ${documents?.length || 0}
-- Individuals Extracted: ${extractedData.individuals.length}
-- Companies Extracted: ${extractedData.companies.length}
 
-${individualsTable}
-
-${companiesTable}
-      `;
-      
-      fs.writeFileSync(path.join(outputDir, 'kyc_report.md'), combinedReport);
-      
-      console.log("Generated tables and saved to output directory.");
-    } catch (fileError) {
-      console.error("Error writing tables to files:", fileError);
-    }
-    
-    return {
-      status: 'success',
-      message: 'KYC document processing completed successfully',
-      summary: {
-        individuals_processed: extractedData.individuals.length,
-        companies_processed: extractedData.companies.length,
-        documents_processed: documents?.length || 0,
-      },
-      tables: {
-        individuals: individualsTable,
-        companies: companiesTable,
-      },
-    };
-  },
-});
-
-// Helper functions for table generation and discrepancy processing
 
 function checkFieldDiscrepancies(entity, field, discrepancies) {
   if (entity[field] && typeof entity[field] === 'object' && !Array.isArray(entity[field])) {

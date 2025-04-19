@@ -40,10 +40,10 @@ function initializeKycDatabase() {
         registration_number TEXT, /* JSON object with values and sources */
         jurisdiction TEXT, /* JSON object with values and sources */
         address TEXT, /* JSON object with values and sources */
-        corporate_roles TEXT, /* JSON object with roles */
         directors TEXT, /* JSON array of director references */
         shareholders TEXT, /* JSON array of shareholder references */
-        ownership_information TEXT, /* JSON object with ownership details */
+        company_activities TEXT, /* JSON object with activities */
+        shares_issued TEXT, /* JSON object with values and sources */
         price_per_share TEXT, /* JSON object with values and sources */
         discrepancies TEXT, /* JSON array of discrepancies */
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

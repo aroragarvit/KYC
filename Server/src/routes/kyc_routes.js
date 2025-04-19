@@ -152,10 +152,10 @@ async function kycRoutes(fastify, options) {
           registration_number: JSON.parse(company.registration_number || '{}'),
           jurisdiction: JSON.parse(company.jurisdiction || '{}'),
           address: JSON.parse(company.address || '{}'),
-          corporate_roles: JSON.parse(company.corporate_roles || '{}'),
           directors: JSON.parse(company.directors || '[]'),
           shareholders: JSON.parse(company.shareholders || '[]'),
-          ownership_information: JSON.parse(company.ownership_information || '{}'),
+          company_activities: JSON.parse(company.company_activities || '{}'),
+          shares_issued: JSON.parse(company.shares_issued || '{}'),
           price_per_share: JSON.parse(company.price_per_share || '{}'),
           discrepancies: JSON.parse(company.discrepancies || '[]')
         };
@@ -190,10 +190,10 @@ async function kycRoutes(fastify, options) {
         registration_number: JSON.parse(company.registration_number || '{}'),
         jurisdiction: JSON.parse(company.jurisdiction || '{}'),
         address: JSON.parse(company.address || '{}'),
-        corporate_roles: JSON.parse(company.corporate_roles || '{}'),
         directors: JSON.parse(company.directors || '[]'),
         shareholders: JSON.parse(company.shareholders || '[]'),
-        ownership_information: JSON.parse(company.ownership_information || '{}'),
+        company_activities: JSON.parse(company.company_activities || '{}'),
+        shares_issued: JSON.parse(company.shares_issued || '{}'),
         price_per_share: JSON.parse(company.price_per_share || '{}'),
         discrepancies: JSON.parse(company.discrepancies || '[]')
       };
@@ -223,18 +223,19 @@ async function kycRoutes(fastify, options) {
         registration_number: JSON.stringify(company.registration_number || {}),
         jurisdiction: JSON.stringify(company.jurisdiction || {}),
         address: JSON.stringify(company.address || {}),
-        corporate_roles: JSON.stringify(company.corporate_roles || {}),
         directors: JSON.stringify(company.directors || []),
         shareholders: JSON.stringify(company.shareholders || []),
-        ownership_information: JSON.stringify(company.ownership_information || {}),
+        company_activities: JSON.stringify(company.company_activities || {}),
+        shares_issued: JSON.stringify(company.shares_issued || {}),
         price_per_share: JSON.stringify(company.price_per_share || {}),
         discrepancies: JSON.stringify(company.discrepancies || [])
       };
       
       const stmt = fastify.kycDb.prepare(`
         INSERT INTO companies (
-          company_name, registration_number, jurisdiction, address, corporate_roles,
-          directors, shareholders, ownership_information, price_per_share, discrepancies
+          company_name, registration_number, jurisdiction, address,
+          directors, shareholders, company_activities, shares_issued,
+          price_per_share, discrepancies
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id
       `);
@@ -244,10 +245,10 @@ async function kycRoutes(fastify, options) {
         dataToStore.registration_number,
         dataToStore.jurisdiction,
         dataToStore.address,
-        dataToStore.corporate_roles,
         dataToStore.directors,
         dataToStore.shareholders,
-        dataToStore.ownership_information,
+        dataToStore.company_activities,
+        dataToStore.shares_issued,
         dataToStore.price_per_share,
         dataToStore.discrepancies
       );
@@ -513,171 +514,15 @@ async function kycRoutes(fastify, options) {
         registration_number: JSON.parse(company.registration_number || '{}'),
         jurisdiction: JSON.parse(company.jurisdiction || '{}'),
         address: JSON.parse(company.address || '{}'),
-        corporate_roles: JSON.parse(company.corporate_roles || '{}'),
         directors: JSON.parse(company.directors || '[]'),
         shareholders: JSON.parse(company.shareholders || '[]'),
-        ownership_information: JSON.parse(company.ownership_information || '{}'),
+        company_activities: JSON.parse(company.company_activities || '{}'),
+        shares_issued: JSON.parse(company.shares_issued || '{}'),
         price_per_share: JSON.parse(company.price_per_share || '{}'),
         discrepancies: JSON.parse(company.discrepancies || '[]')
       };
       
       return { company: processedCompany };
-    } catch (err) {
-      request.log.error(err);
-      reply.code(500).send({ 
-        error: "Internal Server Error", 
-        message: err.message 
-      });
-    }
-  });
-
-  // Update individual by ID
-  fastify.put("/kyc/individuals/:id", async (request, reply) => {
-    try {
-      const { id } = request.params;
-      const individual = request.body;
-      
-      if (!individual.full_name) {
-        return reply.code(400).send({ error: "Full name is required" });
-      }
-      
-      // Check if individual exists
-      const existingIndividual = fastify.kycDb
-        .prepare("SELECT id FROM individuals WHERE id = ?")
-        .get(id);
-      
-      if (!existingIndividual) {
-        return reply.code(404).send({ error: "Individual not found" });
-      }
-      
-      // Convert objects to JSON strings
-      const dataToStore = {
-        full_name: individual.full_name,
-        alternative_names: JSON.stringify(individual.alternative_names || []),
-        id_numbers: JSON.stringify(individual.id_numbers || {}),
-        id_types: JSON.stringify(individual.id_types || {}),
-        nationalities: JSON.stringify(individual.nationalities || {}),
-        addresses: JSON.stringify(individual.addresses || {}),
-        emails: JSON.stringify(individual.emails || {}),
-        phones: JSON.stringify(individual.phones || {}),
-        roles: JSON.stringify(individual.roles || {}),
-        shares_owned: JSON.stringify(individual.shares_owned || {}),
-        price_per_share: JSON.stringify(individual.price_per_share || {}),
-        discrepancies: JSON.stringify(individual.discrepancies || [])
-      };
-      
-      const stmt = fastify.kycDb.prepare(`
-        UPDATE individuals SET
-          full_name = ?,
-          alternative_names = ?,
-          id_numbers = ?,
-          id_types = ?,
-          nationalities = ?,
-          addresses = ?,
-          emails = ?,
-          phones = ?,
-          roles = ?,
-          shares_owned = ?,
-          price_per_share = ?,
-          discrepancies = ?
-        WHERE id = ?
-      `);
-      
-      stmt.run(
-        dataToStore.full_name,
-        dataToStore.alternative_names,
-        dataToStore.id_numbers,
-        dataToStore.id_types,
-        dataToStore.nationalities,
-        dataToStore.addresses,
-        dataToStore.emails,
-        dataToStore.phones,
-        dataToStore.roles,
-        dataToStore.shares_owned,
-        dataToStore.price_per_share,
-        dataToStore.discrepancies,
-        id
-      );
-      
-      return {
-        message: "Individual updated successfully",
-        id
-      };
-    } catch (err) {
-      request.log.error(err);
-      reply.code(500).send({ 
-        error: "Internal Server Error", 
-        message: err.message 
-      });
-    }
-  });
-
-  // Update company by ID
-  fastify.put("/kyc/companies/:id", async (request, reply) => {
-    try {
-      const { id } = request.params;
-      const company = request.body;
-      
-      if (!company.company_name) {
-        return reply.code(400).send({ error: "Company name is required" });
-      }
-      
-      // Check if company exists
-      const existingCompany = fastify.kycDb
-        .prepare("SELECT id FROM companies WHERE id = ?")
-        .get(id);
-      
-      if (!existingCompany) {
-        return reply.code(404).send({ error: "Company not found" });
-      }
-      
-      // Convert objects to JSON strings
-      const dataToStore = {
-        company_name: company.company_name,
-        registration_number: JSON.stringify(company.registration_number || {}),
-        jurisdiction: JSON.stringify(company.jurisdiction || {}),
-        address: JSON.stringify(company.address || {}),
-        corporate_roles: JSON.stringify(company.corporate_roles || {}),
-        directors: JSON.stringify(company.directors || []),
-        shareholders: JSON.stringify(company.shareholders || []),
-        ownership_information: JSON.stringify(company.ownership_information || {}),
-        price_per_share: JSON.stringify(company.price_per_share || {}),
-        discrepancies: JSON.stringify(company.discrepancies || [])
-      };
-      
-      const stmt = fastify.kycDb.prepare(`
-        UPDATE companies SET
-          company_name = ?,
-          registration_number = ?,
-          jurisdiction = ?,
-          address = ?,
-          corporate_roles = ?,
-          directors = ?,
-          shareholders = ?,
-          ownership_information = ?,
-          price_per_share = ?,
-          discrepancies = ?
-        WHERE id = ?
-      `);
-      
-      stmt.run(
-        dataToStore.company_name,
-        dataToStore.registration_number,
-        dataToStore.jurisdiction,
-        dataToStore.address,
-        dataToStore.corporate_roles,
-        dataToStore.directors,
-        dataToStore.shareholders,
-        dataToStore.ownership_information,
-        dataToStore.price_per_share,
-        dataToStore.discrepancies,
-        id
-      );
-      
-      return {
-        message: "Company updated successfully",
-        id
-      };
     } catch (err) {
       request.log.error(err);
       reply.code(500).send({ 
