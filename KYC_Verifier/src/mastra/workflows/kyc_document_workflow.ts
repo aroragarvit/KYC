@@ -208,7 +208,7 @@ const classifyDocuments = new Step({
       Below are multiple documents that need to be classified for KYC (Know Your Customer) purposes.
       For each document, determine its most appropriate document type from these options:
       
-      - identity_document: Official government ID like passports, national ID cards
+      - identity_document: Official government ID like passports, national ID cards, NRIC
       - proof_of_address: Utility bills, bank statements showing residential address
       - company_registry: Official company register documents, incorporation certificates
       - shareholder_registry: Documents showing company ownership structure
@@ -364,10 +364,10 @@ const extractInformation = new Step({
       - Registration numbers with sources
       - Jurisdictions/countries with sources
       - Addresses with sources
-      - Corporate roles (subsidiary, parent company, etc.) with sources
+      - Corporate roles (subsidiary, parent company, etc.) with sources (That company is subsidiary or parent of what company)
       - Directors with sources
       - Shareholders with sources
-      - Ownership information with sources
+      - Ownership information with sources (Who owns that company)
       - Price per share (if available) with sources
       
       ## Documents to Analyze:
@@ -390,6 +390,7 @@ const extractInformation = new Step({
       - Maintain meticulous source tracking. For each piece of information, record which document it came from.
       - Handle conflicting information by including all versions with their respective sources.
       - If information is implied rather than explicitly stated, note this.
+      - Also take document name in consideration while gathering all that information, like if a document name is director reqsitry for some company then that document may contain information about directors of that company. So keep document names in consideration also.
       
       ## Output Format:
       Return ONLY a JSON object with the following structure:

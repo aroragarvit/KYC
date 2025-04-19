@@ -454,6 +454,238 @@ async function kycRoutes(fastify, options) {
       });
     }
   });
+
+  // Get individual by name
+  fastify.get("/kyc/individuals/by-name/:name", async (request, reply) => {
+    try {
+      const { name } = request.params;
+      
+      const individual = fastify.kycDb
+        .prepare("SELECT * FROM individuals WHERE full_name = ?")
+        .get(name);
+      
+      if (!individual) {
+        return reply.code(404).send({ error: "Individual not found" });
+      }
+      
+      // Process to convert JSON strings to objects
+      const processedIndividual = {
+        ...individual,
+        alternative_names: JSON.parse(individual.alternative_names || '[]'),
+        id_numbers: JSON.parse(individual.id_numbers || '{}'),
+        id_types: JSON.parse(individual.id_types || '{}'),
+        nationalities: JSON.parse(individual.nationalities || '{}'),
+        addresses: JSON.parse(individual.addresses || '{}'),
+        emails: JSON.parse(individual.emails || '{}'),
+        phones: JSON.parse(individual.phones || '{}'),
+        roles: JSON.parse(individual.roles || '{}'),
+        shares_owned: JSON.parse(individual.shares_owned || '{}'),
+        price_per_share: JSON.parse(individual.price_per_share || '{}'),
+        discrepancies: JSON.parse(individual.discrepancies || '[]')
+      };
+      
+      return { individual: processedIndividual };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({ 
+        error: "Internal Server Error", 
+        message: err.message 
+      });
+    }
+  });
+
+  // Get company by name
+  fastify.get("/kyc/companies/by-name/:name", async (request, reply) => {
+    try {
+      const { name } = request.params;
+      
+      const company = fastify.kycDb
+        .prepare("SELECT * FROM companies WHERE company_name = ?")
+        .get(name);
+      
+      if (!company) {
+        return reply.code(404).send({ error: "Company not found" });
+      }
+      
+      // Process to convert JSON strings to objects
+      const processedCompany = {
+        ...company,
+        registration_number: JSON.parse(company.registration_number || '{}'),
+        jurisdiction: JSON.parse(company.jurisdiction || '{}'),
+        address: JSON.parse(company.address || '{}'),
+        corporate_roles: JSON.parse(company.corporate_roles || '{}'),
+        directors: JSON.parse(company.directors || '[]'),
+        shareholders: JSON.parse(company.shareholders || '[]'),
+        ownership_information: JSON.parse(company.ownership_information || '{}'),
+        price_per_share: JSON.parse(company.price_per_share || '{}'),
+        discrepancies: JSON.parse(company.discrepancies || '[]')
+      };
+      
+      return { company: processedCompany };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({ 
+        error: "Internal Server Error", 
+        message: err.message 
+      });
+    }
+  });
+
+  // Update individual by ID
+  fastify.put("/kyc/individuals/:id", async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const individual = request.body;
+      
+      if (!individual.full_name) {
+        return reply.code(400).send({ error: "Full name is required" });
+      }
+      
+      // Check if individual exists
+      const existingIndividual = fastify.kycDb
+        .prepare("SELECT id FROM individuals WHERE id = ?")
+        .get(id);
+      
+      if (!existingIndividual) {
+        return reply.code(404).send({ error: "Individual not found" });
+      }
+      
+      // Convert objects to JSON strings
+      const dataToStore = {
+        full_name: individual.full_name,
+        alternative_names: JSON.stringify(individual.alternative_names || []),
+        id_numbers: JSON.stringify(individual.id_numbers || {}),
+        id_types: JSON.stringify(individual.id_types || {}),
+        nationalities: JSON.stringify(individual.nationalities || {}),
+        addresses: JSON.stringify(individual.addresses || {}),
+        emails: JSON.stringify(individual.emails || {}),
+        phones: JSON.stringify(individual.phones || {}),
+        roles: JSON.stringify(individual.roles || {}),
+        shares_owned: JSON.stringify(individual.shares_owned || {}),
+        price_per_share: JSON.stringify(individual.price_per_share || {}),
+        discrepancies: JSON.stringify(individual.discrepancies || [])
+      };
+      
+      const stmt = fastify.kycDb.prepare(`
+        UPDATE individuals SET
+          full_name = ?,
+          alternative_names = ?,
+          id_numbers = ?,
+          id_types = ?,
+          nationalities = ?,
+          addresses = ?,
+          emails = ?,
+          phones = ?,
+          roles = ?,
+          shares_owned = ?,
+          price_per_share = ?,
+          discrepancies = ?
+        WHERE id = ?
+      `);
+      
+      stmt.run(
+        dataToStore.full_name,
+        dataToStore.alternative_names,
+        dataToStore.id_numbers,
+        dataToStore.id_types,
+        dataToStore.nationalities,
+        dataToStore.addresses,
+        dataToStore.emails,
+        dataToStore.phones,
+        dataToStore.roles,
+        dataToStore.shares_owned,
+        dataToStore.price_per_share,
+        dataToStore.discrepancies,
+        id
+      );
+      
+      return {
+        message: "Individual updated successfully",
+        id
+      };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({ 
+        error: "Internal Server Error", 
+        message: err.message 
+      });
+    }
+  });
+
+  // Update company by ID
+  fastify.put("/kyc/companies/:id", async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const company = request.body;
+      
+      if (!company.company_name) {
+        return reply.code(400).send({ error: "Company name is required" });
+      }
+      
+      // Check if company exists
+      const existingCompany = fastify.kycDb
+        .prepare("SELECT id FROM companies WHERE id = ?")
+        .get(id);
+      
+      if (!existingCompany) {
+        return reply.code(404).send({ error: "Company not found" });
+      }
+      
+      // Convert objects to JSON strings
+      const dataToStore = {
+        company_name: company.company_name,
+        registration_number: JSON.stringify(company.registration_number || {}),
+        jurisdiction: JSON.stringify(company.jurisdiction || {}),
+        address: JSON.stringify(company.address || {}),
+        corporate_roles: JSON.stringify(company.corporate_roles || {}),
+        directors: JSON.stringify(company.directors || []),
+        shareholders: JSON.stringify(company.shareholders || []),
+        ownership_information: JSON.stringify(company.ownership_information || {}),
+        price_per_share: JSON.stringify(company.price_per_share || {}),
+        discrepancies: JSON.stringify(company.discrepancies || [])
+      };
+      
+      const stmt = fastify.kycDb.prepare(`
+        UPDATE companies SET
+          company_name = ?,
+          registration_number = ?,
+          jurisdiction = ?,
+          address = ?,
+          corporate_roles = ?,
+          directors = ?,
+          shareholders = ?,
+          ownership_information = ?,
+          price_per_share = ?,
+          discrepancies = ?
+        WHERE id = ?
+      `);
+      
+      stmt.run(
+        dataToStore.company_name,
+        dataToStore.registration_number,
+        dataToStore.jurisdiction,
+        dataToStore.address,
+        dataToStore.corporate_roles,
+        dataToStore.directors,
+        dataToStore.shareholders,
+        dataToStore.ownership_information,
+        dataToStore.price_per_share,
+        dataToStore.discrepancies,
+        id
+      );
+      
+      return {
+        message: "Company updated successfully",
+        id
+      };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({ 
+        error: "Internal Server Error", 
+        message: err.message 
+      });
+    }
+  });
 }
 
 module.exports = kycRoutes;

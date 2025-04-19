@@ -242,3 +242,10 @@ Unhandeled rejection
 [32mINFO[39m [2025-04-19 02:25:50.104 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
 [32mINFO[39m [2025-04-19 02:25:50.105 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
 [32mINFO[39m [2025-04-19 02:25:50.105 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
+[32mINFO[39m [2025-04-19 09:37:14.178 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
+[34mDEBUG[39m [2025-04-19 09:37:14.178 +0530] (Mastra CLI): [36mStopping current server...[39m
+[32mINFO[39m [2025-04-19 09:37:14.181 +0530] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
+[32mINFO[39m [2025-04-19 09:37:15.111 +0530] (Mastra): [36m🦄 Mastra API running on port 4111/api[39m
+[32mINFO[39m [2025-04-19 09:37:15.114 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
+[32mINFO[39m [2025-04-19 09:37:15.115 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
+[32mINFO[39m [2025-04-19 09:37:15.115 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
