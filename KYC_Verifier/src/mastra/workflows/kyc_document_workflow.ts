@@ -4,6 +4,10 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { documentClassificationAgent, kycAnalysisAgent } from '../agents/kyc';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 // Define schemas for input and output data
 const workflowTriggerSchema = z.object({
   company: z.string().describe('The company name to process KYC documents for'),
@@ -537,29 +541,181 @@ const storeInformation = new Step({
 
     console.log("Storing extracted information...");
     
-    // Store individuals
+    // Store individuals with upsert logic
     for (const individual of extractedData.individuals) {
       try {
-        await axios.post('http://localhost:3000/kyc/individuals', individual);
-        console.log(`Stored individual: ${individual.full_name}`);
+        // Check if individual exists before inserting
+        const checkResponse = await axios.get(`http://localhost:3000/kyc/individuals/by-name/${encodeURIComponent(individual.full_name)}`);
+        
+        if (checkResponse.data.individual) {
+          // Update existing individual
+          await axios.put(`http://localhost:3000/kyc/individuals/${checkResponse.data.individual.id}`, individual);
+          console.log(`Updated existing individual: ${individual.full_name}`);
+        } else {
+          // Insert new individual
+          await axios.post('http://localhost:3000/kyc/individuals', individual);
+          console.log(`Stored new individual: ${individual.full_name}`);
+        }
       } catch (error) {
-        console.error(`Error storing individual ${individual.full_name}:`, error);
+        if (error.response && error.response.status === 404) {
+          // Individual not found, create new
+          await axios.post('http://localhost:3000/kyc/individuals', individual);
+          console.log(`Stored new individual: ${individual.full_name}`);
+        } else {
+          console.error(`Error storing individual ${individual.full_name}:`, error);
+        }
       }
     }
     
-    // Store companies
+    // Store companies with upsert logic
     for (const company of extractedData.companies) {
       try {
-        await axios.post('http://localhost:3000/kyc/companies', company);
-        console.log(`Stored company: ${company.company_name}`);
+        // Check if company exists before inserting
+        const checkResponse = await axios.get(`http://localhost:3000/kyc/companies/by-name/${encodeURIComponent(company.company_name)}`);
+        
+        if (checkResponse.data.company) {
+          // Update existing company
+          await axios.put(`http://localhost:3000/kyc/companies/${checkResponse.data.company.id}`, company);
+          console.log(`Updated existing company: ${company.company_name}`);
+        } else {
+          // Insert new company
+          await axios.post('http://localhost:3000/kyc/companies', company);
+          console.log(`Stored new company: ${company.company_name}`);
+        }
+        
+        // Process directors for this company after storing/updating
+        await processDirectorsForCompany(company);
       } catch (error) {
-        console.error(`Error storing company ${company.company_name}:`, error);
+        if (error.response && error.response.status === 404) {
+          // Company not found, create new
+          await axios.post('http://localhost:3000/kyc/companies', company);
+          console.log(`Stored new company: ${company.company_name}`);
+          
+          // Process directors for this new company
+          await processDirectorsForCompany(company);
+        } else {
+          console.error(`Error storing company ${company.company_name}:`, error);
+        }
       }
     }
     
     return extractedData;
   },
 });
+
+// Modified function to only log director information
+async function processDirectorsForCompany(company) {
+  console.log(`\n=== Processing directors for company: ${company.company_name} ===\n`);
+  
+  // Log company details table
+  console.log("COMPANY DETAILS TABLE");
+  console.log("===================");
+  console.log(`a. Intended Company Name: ${company.company_name}`);
+  
+  // Extract alternative names if they exist in the data
+  const altNames = [];
+  if (company.alternative_names) {
+    altNames.push(...company.alternative_names);
+  }
+  console.log(`b. Alternative Company Name 1: ${altNames[0] || "N/A"}`);
+  console.log(`c. Alternative Company Name 2: ${altNames[1] || "N/A"}`);
+  
+  // Try to extract company activities from various fields
+  let companyActivities = "Unknown";
+  if (company.company_activities) {
+    companyActivities = company.company_activities;
+  }
+  console.log(`d. Company Activities: ${companyActivities}`);
+  
+  // Extract registered address
+  let registeredAddress = "Unknown";
+  if (company.address && Object.keys(company.address).length > 0) {
+    const addressSource = Object.values(company.address)[0];
+    registeredAddress = addressSource.value || "Unknown";
+  }
+  console.log(`e. Intended Registered Address: ${registeredAddress}`);
+  
+  console.log(`f. Financial Year End: 31/12/${new Date().getFullYear()}`);
+  console.log(`g. Constitution to be Adopted: (i) the model Constitution in the Companies Act in force from time to time`);
+  console.log("\n");
+  
+  // Find relevant individuals who are directors of this company
+  const directorNames = company.directors || [];
+  if (directorNames.length === 0) {
+    console.log("No directors found for this company\n");
+    return;
+  }
+  
+  // Print directors table header
+  console.log("DIRECTORS TABLE");
+  console.log("==============");
+  console.log("| Name | ID No. | ID Type | Nationality | Residential Address | Tel. No. | Email Address | Requirements Status |");
+  console.log("|------|---------|----------|-------------|-------------------|----------|---------------|-------------------|");
+  
+  // Try to fetch all individuals
+  try {
+    const response = await axios.get('http://localhost:3000/kyc/individuals');
+    const allIndividuals = response.data.individuals || [];
+    
+    for (const directorName of directorNames) {
+      // Find the director in the fetched individuals
+      const director = allIndividuals.find(ind => ind.full_name === directorName);
+      
+      if (!director) {
+        console.log(`| ${directorName} | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | INCOMPLETE |`);
+        continue;
+      }
+      
+      // Extract information from director data
+      const idNumber = getFirstValue(director.id_numbers);
+      const idType = getFirstValue(director.id_types);
+      const nationality = getFirstValue(director.nationalities);
+      const address = getFirstValue(director.addresses);
+      const phone = getFirstValue(director.phones);
+      const email = getFirstValue(director.emails);
+      
+      // Check requirements
+      const requirements = [];
+      if (!idNumber || !idType) requirements.push("ID Document missing");
+      if (!address) requirements.push("Proof of address missing");
+      if (!phone) requirements.push("Phone number missing");
+      if (nationality?.toLowerCase().includes("singapore") && !phone?.includes("+65")) {
+        requirements.push("Local phone number required");
+      }
+      if (!email) requirements.push("Email missing");
+      
+      const requirementsStatus = requirements.length === 0 ? "COMPLETE" : `INCOMPLETE (${requirements.join(", ")})`;
+      
+      // Log director information
+      console.log(
+        `| ${director.full_name} | ${idNumber || "Missing"} | ${idType || "Missing"} | ` +
+        `${nationality || "Missing"} | ${address || "Missing"} | ${phone || "Missing"} | ` +
+        `${email || "Missing"} | ${requirementsStatus} |`
+      );
+      
+      // If there are discrepancies, log them
+      if (director.discrepancies && director.discrepancies.length > 0) {
+        console.log("\nDiscrepancies found for", director.full_name);
+        director.discrepancies.forEach(d => {
+          console.log(`- ${d.field}: ${d.values.join(" vs ")}`);
+          console.log(`  Sources: ${d.sources.join(", ")}`);
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching individuals:", error);
+  }
+  
+  console.log("\n=== End of Processing ===\n");
+}
+
+// Helper function to extract first value from sourced data
+function getFirstValue(sourceObj) {
+  if (!sourceObj || Object.keys(sourceObj).length === 0) {
+    return null;
+  }
+  return Object.values(sourceObj)[0]?.value || null;
+}
 
 // Step 7: Generate summary tables
 const generateSummaryTables = new Step({
@@ -758,7 +914,8 @@ const kycDocumentWorkflow = new Workflow({
 
 // Handle errors gracefully
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  //console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error("Unhandeled rejection");
 });
 
 kycDocumentWorkflow.commit();

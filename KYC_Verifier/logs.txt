@@ -1,0 +1,244 @@
+
+> kyc_verifier@1.0.0 dev
+> mastra dev
+
+[32mINFO[39m [2025-04-19 02:06:04.009 +0530] (BUNDLER - Dev): [36mStarting watcher...[39m
+[32mINFO[39m [2025-04-19 02:06:04.682 +0530] (BUNDLER - Dev): [36mBundling finished, starting server...[39m
+[32mINFO[39m [2025-04-19 02:06:04.699 +0530] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
+[32mINFO[39m [2025-04-19 02:06:05.524 +0530] (Mastra): [36m🦄 Mastra API running on port 4111/api[39m
+[32mINFO[39m [2025-04-19 02:06:05.528 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
+[32mINFO[39m [2025-04-19 02:06:05.528 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
+[32mINFO[39m [2025-04-19 02:06:05.528 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
+Fetching documents...
+Reading content for document 1: 00000000 Template - Engagement - Incorporation Form - PLC.pdf
+Reading content for document 2: Director Appointment Truffles AI.docx
+Reading content for document 3: Director Registry Truffles AI.docx
+Reading content for document 4: John Doe Full.docx
+Reading content for document 5: John Doe Passport Full.docx
+Reading content for document 6: Proof of Address John Doe (3).docx
+Reading content for document 7: Truffles AI Holdings Company Profile.docx
+Reading content for document 8: Truffles AI Shareholder Registry.docx
+Classifying 8 documents in a single batch...
+All documents already have classifications. Skipping classification step.
+Extracting information from 8 documents...
+Sending prompt to extract information...
+Fetching documents...
+Reading content for document 1: 00000000 Template - Engagement - Incorporation Form - PLC.pdf
+Reading content for document 2: Director Appointment Truffles AI.docx
+Reading content for document 3: Director Registry Truffles AI.docx
+Reading content for document 4: John Doe Full.docx
+Reading content for document 5: John Doe Passport Full.docx
+Reading content for document 6: Proof of Address John Doe (3).docx
+Reading content for document 7: Truffles AI Holdings Company Profile.docx
+Reading content for document 8: Truffles AI Shareholder Registry.docx
+Classifying 8 documents in a single batch...
+All documents already have classifications. Skipping classification step.
+Extracting information from 8 documents...
+Sending prompt to extract information...
+Received response, parsing...
+Successfully extracted information about 4 individuals and 3 companies
+Processing discrepancies in extracted data...
+Storing extracted information...
+Updated existing individual: John Doe
+Updated existing individual: Alice Tan
+Updated existing individual: Michael Zhou
+Updated existing individual: Priya Khanna
+Updated existing company: Truffles AI Pte Ltd
+
+=== Processing directors for company: Truffles AI Pte Ltd ===
+
+COMPANY DETAILS TABLE
+===================
+a. Intended Company Name: Truffles AI Pte Ltd
+b. Alternative Company Name 1: N/A
+c. Alternative Company Name 2: N/A
+d. Company Activities: Unknown
+e. Intended Registered Address: Unknown
+f. Financial Year End: 31/12/2025
+g. Constitution to be Adopted: (i) the model Constitution in the Companies Act in force from time to time
+
+
+DIRECTORS TABLE
+==============
+| Name | ID No. | ID Type | Nationality | Residential Address | Tel. No. | Email Address | Requirements Status |
+|------|---------|----------|-------------|-------------------|----------|---------------|-------------------|
+| John Doe | S8888999C | ID (Inferred) | Singaporean | 10 Marina Bay Sands, Tower 3, #25-02, Singapore 018956 | +65 9000 1234 | john.doe@truffles.ai | COMPLETE |
+
+Discrepancies found for John Doe
+- id_numbers: S8888999C vs S1234567D vs X1234567
+  Sources: Director Registry Truffles AI.docx, John Doe Full.docx, John Doe Passport Full.docx
+- id_types: ID (Inferred) vs NRIC vs Passport
+  Sources: Director Registry Truffles AI.docx, John Doe Full.docx, John Doe Passport Full.docx
+- nationalities: Singaporean vs United States of America
+  Sources: Director Registry Truffles AI.docx, John Doe Full.docx, John Doe Passport Full.docx
+- addresses: 10 Marina Bay Sands, Tower 3, #25-02, Singapore 018956 vs 123 Orchard Road, #10-01, Singapore 238888
+  Sources: Director Registry Truffles AI.docx, John Doe Full.docx, Proof of Address John Doe (3).docx
+| Alice Tan | S1234567A | ID (Inferred) | Singaporean | 21 Bukit Timah Road, #05-01, Singapore 229837 | +65 9123 4567 | alice.tan@truffles.ai | COMPLETE |
+| Michael Zhou (Alternate to Alice Tan) | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | INCOMPLETE |
+
+=== End of Processing ===
+
+Updated existing company: Truffles AI Holdings Ltd
+
+=== Processing directors for company: Truffles AI Holdings Ltd ===
+
+COMPANY DETAILS TABLE
+===================
+a. Intended Company Name: Truffles AI Holdings Ltd
+b. Alternative Company Name 1: N/A
+c. Alternative Company Name 2: N/A
+d. Company Activities: Unknown
+e. Intended Registered Address: 14 Palm Grove, Roadtown, Tortola, BVI
+f. Financial Year End: 31/12/2025
+g. Constitution to be Adopted: (i) the model Constitution in the Companies Act in force from time to time
+
+
+DIRECTORS TABLE
+==============
+| Name | ID No. | ID Type | Nationality | Residential Address | Tel. No. | Email Address | Requirements Status |
+|------|---------|----------|-------------|-------------------|----------|---------------|-------------------|
+| Alice Tan | S1234567A | ID (Inferred) | Singaporean | 21 Bukit Timah Road, #05-01, Singapore 229837 | +65 9123 4567 | alice.tan@truffles.ai | COMPLETE |
+| Michael Zhou | P0987654B | ID (Inferred) | American | 500 Market Street, San Francisco, CA, USA | +1 415 123 4567 | michael.zhou@truffles.ai | COMPLETE |
+
+=== End of Processing ===
+
+Updated existing company: Truffles AI Research Inc (Delaware)
+
+=== Processing directors for company: Truffles AI Research Inc (Delaware) ===
+
+COMPANY DETAILS TABLE
+===================
+a. Intended Company Name: Truffles AI Research Inc (Delaware)
+b. Alternative Company Name 1: N/A
+c. Alternative Company Name 2: N/A
+d. Company Activities: Unknown
+e. Intended Registered Address: Unknown
+f. Financial Year End: 31/12/2025
+g. Constitution to be Adopted: (i) the model Constitution in the Companies Act in force from time to time
+
+
+No directors found for this company
+
+Generating summary tables...
+Error writing tables to files: ReferenceError: __dirname is not defined
+    at execute (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/.mastra/output/index.mjs:3319:35)
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-RT3BSWWR.js:381:20
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at AsyncLocalStorageContextManager.with (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@opentelemetry/context-async-hooks/build/src/AsyncLocalStorageContextManager.js:33:40)
+    at ContextAPI.with (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-RT3BSWWR.js:380:21
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:4494:15
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at AsyncLocalStorageContextManager.with (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@opentelemetry/context-async-hooks/build/src/AsyncLocalStorageContextManager.js:33:40)
+    at ContextAPI.with (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)
+Received response, parsing...
+Error parsing JSON: SyntaxError: Expected double-quoted property name in JSON at position 4171
+    at JSON.parse (<anonymous>)
+    at execute (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/.mastra/output/index.mjs:3090:36)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:4489:16
+    at async handler (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:4515:28)
+    at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:4489:16
+    at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:2362:20
+Error extracting information: Error: Failed to parse extracted information
+    at execute (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/.mastra/output/index.mjs:3097:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:4489:16
+    at async handler (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:4515:28)
+    at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:4489:16
+    at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:2362:20
+Unhandled Rejection at: Promise {
+  <rejected> TypeError [ERR_INVALID_STATE]: Invalid state: Controller is already closed
+      at ReadableStreamDefaultController.enqueue (node:internal/webstreams/readablestream:1051:13)
+      at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/.mastra/output/index.mjs:12184:22
+      at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:3297:16
+      at Set.forEach (<anonymous>)
+      at Machine.stateUpdateHandler (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:3296:32)
+      at Machine.emit (node:events:519:28)
+      at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:2176:14
+      at Actor.update (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:636:28)
+      at Actor._process (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:880:10)
+      at Mailbox.flush (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:45:12) {
+    code: 'ERR_INVALID_STATE'
+  },
+  [Symbol(async_id_symbol)]: 28627,
+  [Symbol(trigger_async_id_symbol)]: 16010,
+  [Symbol(kResourceStore)]: BaseContext {
+    _currentContext: Map(3) {
+      Symbol(OpenTelemetry Context Key SPAN) => [Span],
+      Symbol(OpenTelemetry SDK Context Key RPC_METADATA) => [Object],
+      Symbol(OpenTelemetry Baggage Key) => [Object]
+    },
+    getValue: [Function (anonymous)],
+    setValue: [Function (anonymous)],
+    deleteValue: [Function (anonymous)]
+  }
+} reason: TypeError [ERR_INVALID_STATE]: Invalid state: Controller is already closed
+    at ReadableStreamDefaultController.enqueue (node:internal/webstreams/readablestream:1051:13)
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/.mastra/output/index.mjs:12184:22
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:3297:16
+    at Set.forEach (<anonymous>)
+    at Machine.stateUpdateHandler (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:3296:32)
+    at Machine.emit (node:events:519:28)
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:2176:14
+    at Actor.update (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:636:28)
+    at Actor._process (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:880:10)
+    at Mailbox.flush (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:45:12) {
+  code: 'ERR_INVALID_STATE'
+}
+Unhandled Rejection at: Promise {
+  <rejected> TypeError [ERR_INVALID_STATE]: Invalid state: Controller is already closed
+      at ReadableStreamDefaultController.enqueue (node:internal/webstreams/readablestream:1051:13)
+      at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/.mastra/output/index.mjs:12184:22
+      at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:3297:16
+      at Set.forEach (<anonymous>)
+      at Machine.stateUpdateHandler (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:3296:32)
+      at Machine.emit (node:events:519:28)
+      at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:2176:14
+      at Actor.update (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:636:28)
+      at Actor._process (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:880:10)
+      at Mailbox.flush (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:45:12) {
+    code: 'ERR_INVALID_STATE'
+  },
+  [Symbol(async_id_symbol)]: 28627,
+  [Symbol(trigger_async_id_symbol)]: 16010,
+  [Symbol(kResourceStore)]: BaseContext {
+    _currentContext: Map(3) {
+      Symbol(OpenTelemetry Context Key SPAN) => [Span],
+      Symbol(OpenTelemetry SDK Context Key RPC_METADATA) => [Object],
+      Symbol(OpenTelemetry Baggage Key) => [Object]
+    },
+    getValue: [Function (anonymous)],
+    setValue: [Function (anonymous)],
+    deleteValue: [Function (anonymous)]
+  }
+} reason: TypeError [ERR_INVALID_STATE]: Invalid state: Controller is already closed
+    at ReadableStreamDefaultController.enqueue (node:internal/webstreams/readablestream:1051:13)
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/.mastra/output/index.mjs:12184:22
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:3297:16
+    at Set.forEach (<anonymous>)
+    at Machine.stateUpdateHandler (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:3296:32)
+    at Machine.emit (node:events:519:28)
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-FFOLLSHP.js:2176:14
+    at Actor.update (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:636:28)
+    at Actor._process (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:880:10)
+    at Mailbox.flush (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:45:12) {
+  code: 'ERR_INVALID_STATE'
+}
+Unhandeled rejection
+[32mINFO[39m [2025-04-19 02:25:30.769 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
+[34mDEBUG[39m [2025-04-19 02:25:30.770 +0530] (Mastra CLI): [36mStopping current server...[39m
+[32mINFO[39m [2025-04-19 02:25:30.772 +0530] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
+[32mINFO[39m [2025-04-19 02:25:31.630 +0530] (Mastra): [36m🦄 Mastra API running on port 4111/api[39m
+[32mINFO[39m [2025-04-19 02:25:31.634 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
+[32mINFO[39m [2025-04-19 02:25:31.634 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
+[32mINFO[39m [2025-04-19 02:25:31.634 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
+[32mINFO[39m [2025-04-19 02:25:49.148 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
+[34mDEBUG[39m [2025-04-19 02:25:49.148 +0530] (Mastra CLI): [36mStopping current server...[39m
+[32mINFO[39m [2025-04-19 02:25:49.154 +0530] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
+[32mINFO[39m [2025-04-19 02:25:49.574 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
+[32mINFO[39m [2025-04-19 02:25:49.961 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
+[32mINFO[39m [2025-04-19 02:25:50.101 +0530] (Mastra): [36m🦄 Mastra API running on port 4111/api[39m
+[32mINFO[39m [2025-04-19 02:25:50.104 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
+[32mINFO[39m [2025-04-19 02:25:50.105 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
+[32mINFO[39m [2025-04-19 02:25:50.105 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
