@@ -163,9 +163,9 @@ const fetchDocuments = new Step({
       console.log("Fetching documents...");
       const response = await axios.get('http://localhost:3000/kyc/documents');
       return response.data.documents;
-    } catch (error) {
-      console.error('Error fetching documents:', error);
-      throw new Error('Failed to fetch documents');
+    } catch (error: unknown) {
+      console.error(`Error executing KYC document workflow step 1: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
     }
   },
 });
@@ -518,8 +518,31 @@ const extractInformation = new Step({
       jsonText = jsonText.replace(/```(json)?|```/g, '').trim();
       
       try {
+        // Sanitize JSON to fix common formatting issues
+        // 1. Fix unquoted property names (convert from JavaScript object syntax to valid JSON)
+        jsonText = jsonText.replace(/([{,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
+        
+        // 2. Fix trailing commas in arrays and objects
+        jsonText = jsonText.replace(/,\s*([\]}])/g, '$1');
+        
+        // Log first 100 chars of sanitized JSON for debugging
+        console.log(`Sanitized JSON (first 100 chars): ${jsonText.substring(0, 100)}...`);
+        
         // Parse the JSON
-        const extractedData = JSON.parse(jsonText);
+        let extractedData;
+        try {
+          extractedData = JSON.parse(jsonText);
+        } catch (parseError) {
+          console.error('Error parsing JSON after sanitization:', parseError);
+          console.error('JSON position details:', {
+            errorPosition: (parseError as SyntaxError).message.match(/position (\d+)/)?.[1],
+            textAroundError: jsonText.substring(
+              Math.max(0, parseInt((parseError as SyntaxError).message.match(/position (\d+)/)?.[1] || '0') - 30),
+              Math.min(jsonText.length, parseInt((parseError as SyntaxError).message.match(/position (\d+)/)?.[1] || '0') + 30)
+            )
+          });
+          throw parseError;
+        }
         
         console.log(`Successfully extracted information about ${extractedData.individuals?.length || 0} individuals and ${extractedData.companies?.length || 0} companies`);
         
@@ -532,9 +555,9 @@ const extractInformation = new Step({
         console.error('Error parsing JSON:', parseError);
         throw new Error(`Failed to parse extracted information`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error extracting information:', error);
-      throw new Error(`Information extraction failed: ${error.message}`);
+      throw new Error(`Information extraction failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   },
 });
@@ -697,6 +720,8 @@ const storeInformation = new Step({
 
 // Process directors for company and store in dedicated table
 async function processDirectorsForCompany(company: CompanyRecord): Promise<void> {
+  // Keep track of document sources for traceability
+  const documentSources: {[key: string]: {documentId: number, documentType: string}} = {};
   console.log(`\n=== Processing directors for company: ${company.company_name} ===\n`);
   
   // Log company details table with verification status
@@ -765,11 +790,27 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
       
       // Extract information and sources
       const idInfo = getValueAndSource(director.id_numbers);
-      const idTypeInfo = getValueAndSource(director.id_types);
       const nationalityInfo = getValueAndSource(director.nationalities);
       const addressInfo = getValueAndSource(director.addresses);
       const phoneInfo = getValueAndSource(director.phones);
       const emailInfo = getValueAndSource(director.emails);
+      
+      // Track document sources
+      if (idInfo.documentId) documentSources[`id_number`] = {documentId: idInfo.documentId, documentType: idInfo.documentType || ''};
+      if (nationalityInfo.documentId) documentSources[`nationality`] = {documentId: nationalityInfo.documentId, documentType: nationalityInfo.documentType || ''};
+      if (addressInfo.documentId) documentSources[`address`] = {documentId: addressInfo.documentId, documentType: addressInfo.documentType || ''};
+      if (phoneInfo.documentId) documentSources[`phone`] = {documentId: phoneInfo.documentId, documentType: phoneInfo.documentType || ''};
+      if (emailInfo.documentId) documentSources[`email`] = {documentId: emailInfo.documentId, documentType: emailInfo.documentType || ''};
+      
+      // Infer ID type based on nationality and ID number if not already present
+      let idType = director.id_types ? getValueAndSource(director.id_types).value : null;
+      if (!idType && nationalityInfo.value && idInfo.value) {
+        idType = inferIdType(nationalityInfo.value, idInfo.value);
+      }
+      
+      const idTypeInfo = director.id_types ? 
+        getValueAndSource(director.id_types) : 
+        { value: idType, source: "Inferred from nationality", documentId: nationalityInfo.documentId, sourceJson: JSON.stringify({source: "Inferred from nationality", documentId: nationalityInfo.documentId}) };
       
       // Check for document types in sources
       const hasIdDocument = checkDocumentTypeExists(director.id_numbers, ['identity_document', 'nric', 'passport', 'fin']);
@@ -830,17 +871,23 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
         `${verificationStatus} | ${kycStatusDisplay} |`
       );
       
-      // Store this director information in the directors table
+      // Store this director information in the directors table with field sources
       try {
         await axios.post('http://localhost:3000/kyc/directors', {
           company_name: company.company_name,
           director_name: director.full_name,
           id_number: idInfo.value,
+          id_number_source: idInfo.sourceJson,
           id_type: idTypeInfo.value,
+          id_type_source: idTypeInfo.sourceJson,
           nationality: nationalityInfo.value,
+          nationality_source: nationalityInfo.sourceJson,
           residential_address: addressInfo.value,
+          residential_address_source: addressInfo.sourceJson,
           tel_number: phoneInfo.value,
+          tel_number_source: phoneInfo.sourceJson,
           email_address: emailInfo.value,
+          email_address_source: emailInfo.sourceJson,
           verification_status: verificationStatus,
           kyc_status: kycStatusDisplay
         });
@@ -861,6 +908,8 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
 
 // Process shareholders for a company and store in dedicated table
 async function processShareholdersForCompany(company: CompanyRecord): Promise<void> {
+  // Keep track of document sources for traceability
+  const documentSources: {[key: string]: {documentId: number, documentType: string}} = {};
   console.log(`\n=== Processing shareholders for company: ${company.company_name} ===\n`);
   console.log("SHAREHOLDERS TABLE");
   console.log("==================");
@@ -892,13 +941,33 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
       if (isIndividual) {
         // Process individual shareholder
         idInfo = getValueAndSource(individual.id_numbers);
-        idTypeInfo = getValueAndSource(individual.id_types);
         nationalityInfo = getValueAndSource(individual.nationalities);
         addressInfo = getValueAndSource(individual.addresses);
         phoneInfo = getValueAndSource(individual.phones);
         emailInfo = getValueAndSource(individual.emails);
-        sharesInfo = sharePctStr ? { value: sharePctStr, source: "Declaration" } : getValueAndSource(individual.shares_owned);
+        sharesInfo = sharePctStr ? 
+          { value: sharePctStr, source: "Declaration", sourceJson: JSON.stringify({source: "Declaration"}) } : 
+          getValueAndSource(individual.shares_owned);
         priceInfo = getValueAndSource(individual.price_per_share);
+        
+        // Track document sources
+        if (idInfo.documentId) documentSources[`id_number`] = {documentId: idInfo.documentId, documentType: idInfo.documentType || ''};
+        if (nationalityInfo.documentId) documentSources[`nationality`] = {documentId: nationalityInfo.documentId, documentType: nationalityInfo.documentType || ''};
+        if (addressInfo.documentId) documentSources[`address`] = {documentId: addressInfo.documentId, documentType: addressInfo.documentType || ''};
+        if (phoneInfo.documentId) documentSources[`phone`] = {documentId: phoneInfo.documentId, documentType: phoneInfo.documentType || ''};
+        if (emailInfo.documentId) documentSources[`email`] = {documentId: emailInfo.documentId, documentType: emailInfo.documentType || ''};
+        if (sharesInfo.documentId) documentSources[`shares_owned`] = {documentId: sharesInfo.documentId, documentType: sharesInfo.documentType || ''};
+        if (priceInfo.documentId) documentSources[`price_per_share`] = {documentId: priceInfo.documentId, documentType: priceInfo.documentType || ''};
+        
+        // Infer ID type based on nationality and ID number if not already present
+        let idType = individual.id_types ? getValueAndSource(individual.id_types).value : null;
+        if (!idType && nationalityInfo.value && idInfo.value) {
+          idType = inferIdType(nationalityInfo.value, idInfo.value);
+        }
+        
+        idTypeInfo = individual.id_types ? 
+          getValueAndSource(individual.id_types) : 
+          { value: idType, source: "Inferred from nationality", documentId: nationalityInfo.documentId, sourceJson: JSON.stringify({source: "Inferred from nationality", documentId: nationalityInfo.documentId}) };
         const isLocal = nationalityInfo.value?.toLowerCase().includes('singapore');
         const hasNRIC = checkDocumentTypeExists(individual.id_numbers, ['nric']);
         const hasPassport = checkDocumentTypeExists(individual.id_numbers, ['passport']);
@@ -916,19 +985,27 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
           if (missing.length) { verificationStatus = "pending"; kycStatus = missing; }
         }
         
-        // Store individual shareholder in the shareholders table
+        // Store individual shareholder in the shareholders table with field sources
         try {
           await axios.post('http://localhost:3000/kyc/shareholders', {
             company_name: company.company_name,
             shareholder_name: parsedName,
             shares_owned: sharesInfo.value,
+            shares_owned_source: sharesInfo.sourceJson,
             price_per_share: priceInfo.value,
+            price_per_share_source: priceInfo.sourceJson,
             id_number: idInfo.value,
+            id_number_source: idInfo.sourceJson,
             id_type: idTypeInfo.value,
+            id_type_source: idTypeInfo.sourceJson,
             nationality: nationalityInfo.value,
+            nationality_source: nationalityInfo.sourceJson,
             address: addressInfo.value,
+            address_source: addressInfo.sourceJson,
             tel_number: phoneInfo.value,
+            tel_number_source: phoneInfo.sourceJson,
             email_address: emailInfo.value,
+            email_address_source: emailInfo.sourceJson,
             verification_status: verificationStatus,
             kyc_status: kycStatus.length ? kycStatus.join("; ") : "Complete",
             is_company: 0  // Individual
@@ -963,12 +1040,14 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
         }
         
         idInfo = getValueAndSource(compEnt.registration_number);
-        idTypeInfo = { value: "Registration Number", source: "System" };
+        idTypeInfo = { value: "Registration Number", source: "System", sourceJson: JSON.stringify({source: "System"}) };
         nationalityInfo = getValueAndSource(compEnt.jurisdiction);
         addressInfo = getValueAndSource(compEnt.address);
-        phoneInfo = { value: null, source: "No source" };
+        phoneInfo = { value: null, source: "No source", sourceJson: JSON.stringify({source: "No source"}) };
         emailInfo = getValueAndSource(compEnt.emails);
-        sharesInfo = sharePctStr ? { value: sharePctStr, source: "Declaration" } : getValueAndSource(compEnt.shares_issued);
+        sharesInfo = sharePctStr ? 
+          { value: sharePctStr, source: "Declaration", sourceJson: JSON.stringify({source: "Declaration"}) } : 
+          getValueAndSource(compEnt.shares_issued);
         priceInfo = getValueAndSource(compEnt.price_per_share);
         const isLocalCorp = nationalityInfo.value?.toLowerCase() === 'singapore';
         const hasBizfile = checkDocumentTypeExists(compEnt.company_activities, ['bizfile']);
@@ -993,19 +1072,27 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
           if (missing.length) { verificationStatus = "pending"; kycStatus = missing; }
         }
         
-        // Store corporate shareholder in the shareholders table
+        // Store corporate shareholder in the shareholders table with field sources
         try {
           await axios.post('http://localhost:3000/kyc/shareholders', {
             company_name: company.company_name,
             shareholder_name: parsedName,
             shares_owned: sharesInfo.value,
+            shares_owned_source: sharesInfo.sourceJson,
             price_per_share: priceInfo.value,
+            price_per_share_source: priceInfo.sourceJson,
             id_number: idInfo.value,
+            id_number_source: idInfo.sourceJson,
             id_type: idTypeInfo.value,
+            id_type_source: idTypeInfo.sourceJson,
             nationality: nationalityInfo.value,
+            nationality_source: nationalityInfo.sourceJson,
             address: addressInfo.value,
+            address_source: addressInfo.sourceJson,
             tel_number: phoneInfo.value,
+            tel_number_source: phoneInfo.sourceJson,
             email_address: emailInfo.value,
+            email_address_source: emailInfo.sourceJson,
             verification_status: verificationStatus,
             kyc_status: kycStatus.length ? kycStatus.join("; ") : "Complete",
             is_company: 1  // Company
@@ -1030,16 +1117,80 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
   console.log("\n=== End of Shareholder Processing ===\n");
 }
 
-// Helper function to get both value and source
-function getValueAndSource(sourceObj: Record<string, Source> | undefined): { value: string | null; source: string } {
-  if (!sourceObj || Object.keys(sourceObj).length === 0) {
-    return { value: null, source: "No source" };
+// Helper function to get value and source from a record
+function getValueAndSource(record?: Record<string, Source>): { 
+  value: string | null; 
+  source: string; 
+  documentId?: number; 
+  documentType?: string;
+  documentName?: string;
+  sourceJson?: string; // JSON representation of source for storage
+} {
+  if (!record || Object.keys(record).length === 0) {
+    return { 
+      value: null, 
+      source: "No source",
+      sourceJson: JSON.stringify({source: "No source"}) 
+    };
   }
-  const firstEntry = Object.entries(sourceObj)[0];
-  return {
-    value: firstEntry[1].value,
-    source: `${firstEntry[1].documentType} (${firstEntry[1].documentName})`
+  
+  const firstKey = Object.keys(record)[0];
+  const source = record[firstKey];
+  
+  // Prepare source JSON for storage in the database
+  const sourceObject = {
+    documentId: source.documentId,
+    documentName: source.documentName,
+    documentType: source.documentType
   };
+  
+  return { 
+    value: source.value, 
+    source: source.documentName || "Unknown source",
+    documentId: source.documentId,
+    documentType: source.documentType,
+    documentName: source.documentName,
+    sourceJson: JSON.stringify(sourceObject)
+  };
+}
+
+// Helper function to infer ID type based on nationality
+function inferIdType(nationality: string | null, idNumber: string | null): string {
+  if (!nationality || !idNumber) return "Unknown";
+  
+  const natLower = nationality.toLowerCase();
+  
+  // Singapore ID types
+  if (natLower.includes("singapore") || natLower === "sg" || natLower === "sgp") {
+    if (idNumber.match(/^[STFG]\d{7}[A-Z]$/)) return "NRIC";
+    if (idNumber.match(/^[A-Z]\d{7}[A-Z]$/)) return "FIN";
+  }
+  
+  // Malaysian ID
+  if (natLower.includes("malaysia") || natLower === "my" || natLower === "mys") {
+    if (idNumber.match(/^\d{6}-\d{2}-\d{4}$/)) return "Malaysian IC";
+  }
+  
+  // Indonesian ID
+  if (natLower.includes("indonesia") || natLower === "id" || natLower === "idn") {
+    if (idNumber.match(/^\d{16}$/)) return "KTP";
+  }
+  
+  // Chinese ID
+  if (natLower.includes("china") || natLower === "cn" || natLower === "chn") {
+    if (idNumber.match(/^\d{18}$/) || idNumber.match(/^\d{17}[0-9X]$/)) return "Chinese ID Card";
+  }
+  
+  // Indian ID
+  if (natLower.includes("india") || natLower === "in" || natLower === "ind") {
+    if (idNumber.match(/^[A-Z]{5}\d{4}[A-Z]$/)) return "PAN Card";
+    if (idNumber.match(/^\d{12}$/)) return "Aadhaar";
+  }
+  
+  // Check for passport-like format
+  if (idNumber.match(/^[A-Z]\d{7,9}$/)) return "Passport";
+  
+  return "National ID";
 }
 
 // Helper function to format source information

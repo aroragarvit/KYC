@@ -70,11 +70,17 @@ function initializeKycDatabase() {
         company_name TEXT NOT NULL,
         director_name TEXT NOT NULL,
         id_number TEXT,
+        id_number_source TEXT, /* JSON with document id, name, type */
         id_type TEXT,
+        id_type_source TEXT, /* JSON with document id, name, type */
         nationality TEXT,
+        nationality_source TEXT, /* JSON with document id, name, type */
         residential_address TEXT,
+        residential_address_source TEXT, /* JSON with document id, name, type */
         tel_number TEXT,
+        tel_number_source TEXT, /* JSON with document id, name, type */
         email_address TEXT,
+        email_address_source TEXT, /* JSON with document id, name, type */
         verification_status TEXT DEFAULT 'pending',
         kyc_status TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -89,13 +95,21 @@ function initializeKycDatabase() {
         company_name TEXT NOT NULL,
         shareholder_name TEXT NOT NULL,
         shares_owned TEXT,
+        shares_owned_source TEXT, /* JSON with document id, name, type */
         price_per_share TEXT,
+        price_per_share_source TEXT, /* JSON with document id, name, type */
         id_number TEXT,
+        id_number_source TEXT, /* JSON with document id, name, type */
         id_type TEXT,
+        id_type_source TEXT, /* JSON with document id, name, type */
         nationality TEXT,
+        nationality_source TEXT, /* JSON with document id, name, type */
         address TEXT,
+        address_source TEXT, /* JSON with document id, name, type */
         tel_number TEXT,
+        tel_number_source TEXT, /* JSON with document id, name, type */
         email_address TEXT,
+        email_address_source TEXT, /* JSON with document id, name, type */
         verification_status TEXT DEFAULT 'pending',
         kyc_status TEXT,
         is_company INTEGER DEFAULT 0, /* 0 for individual, 1 for company */

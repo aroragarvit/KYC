@@ -86,6 +86,11 @@ async function kycRoutes(fastify, options) {
         return reply.code(400).send({ error: "Full name is required" });
       }
       
+      // Check if individual already exists by exact name match
+      const existingIndividual = fastify.kycDb
+        .prepare("SELECT id FROM individuals WHERE full_name = ?")
+        .get(individual.full_name);
+      
       // Convert objects to JSON strings
       const dataToStore = {
         full_name: individual.full_name,
@@ -102,33 +107,77 @@ async function kycRoutes(fastify, options) {
         discrepancies: JSON.stringify(individual.discrepancies || [])
       };
       
-      const stmt = fastify.kycDb.prepare(`
-        INSERT INTO individuals (
-          full_name, alternative_names, id_numbers, id_types, nationalities,
-          addresses, emails, phones, roles, shares_owned, price_per_share, discrepancies
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        RETURNING id
-      `);
+      let result;
       
-      const result = stmt.get(
-        dataToStore.full_name,
-        dataToStore.alternative_names,
-        dataToStore.id_numbers,
-        dataToStore.id_types,
-        dataToStore.nationalities,
-        dataToStore.addresses,
-        dataToStore.emails,
-        dataToStore.phones,
-        dataToStore.roles,
-        dataToStore.shares_owned,
-        dataToStore.price_per_share,
-        dataToStore.discrepancies
-      );
-      
-      return {
-        message: "Individual stored successfully",
-        id: result.id
-      };
+      if (existingIndividual) {
+        // Update existing individual
+        const updateStmt = fastify.kycDb.prepare(`
+          UPDATE individuals SET
+            alternative_names = ?,
+            id_numbers = ?,
+            id_types = ?,
+            nationalities = ?,
+            addresses = ?,
+            emails = ?,
+            phones = ?,
+            roles = ?,
+            shares_owned = ?,
+            price_per_share = ?,
+            discrepancies = ?
+          WHERE id = ?
+        `);
+        
+        updateStmt.run(
+          dataToStore.alternative_names,
+          dataToStore.id_numbers,
+          dataToStore.id_types,
+          dataToStore.nationalities,
+          dataToStore.addresses,
+          dataToStore.emails,
+          dataToStore.phones,
+          dataToStore.roles,
+          dataToStore.shares_owned,
+          dataToStore.price_per_share,
+          dataToStore.discrepancies,
+          existingIndividual.id
+        );
+        
+        result = { id: existingIndividual.id };
+        return {
+          message: "Individual updated successfully",
+          id: result.id
+        };
+      } else {
+        // Insert new individual
+        const insertStmt = fastify.kycDb.prepare(`
+          INSERT INTO individuals (
+            full_name, alternative_names, id_numbers, id_types,
+            nationalities, addresses, emails, phones, roles,
+            shares_owned, price_per_share, discrepancies
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          RETURNING id
+        `);
+        
+        result = insertStmt.get(
+          dataToStore.full_name,
+          dataToStore.alternative_names,
+          dataToStore.id_numbers,
+          dataToStore.id_types,
+          dataToStore.nationalities,
+          dataToStore.addresses,
+          dataToStore.emails,
+          dataToStore.phones,
+          dataToStore.roles,
+          dataToStore.shares_owned,
+          dataToStore.price_per_share,
+          dataToStore.discrepancies
+        );
+        
+        return {
+          message: "Individual stored successfully",
+          id: result.id
+        };
+      }
     } catch (err) {
       request.log.error(err);
       reply.code(500).send({ 
@@ -217,6 +266,11 @@ async function kycRoutes(fastify, options) {
         return reply.code(400).send({ error: "Company name is required" });
       }
       
+      // Check if company already exists by exact name match
+      const existingCompany = fastify.kycDb
+        .prepare("SELECT id FROM companies WHERE company_name = ?")
+        .get(company.company_name);
+      
       // Convert objects to JSON strings
       const dataToStore = {
         company_name: company.company_name,
@@ -231,32 +285,71 @@ async function kycRoutes(fastify, options) {
         discrepancies: JSON.stringify(company.discrepancies || [])
       };
       
-      const stmt = fastify.kycDb.prepare(`
-        INSERT INTO companies (
-          company_name, registration_number, jurisdiction, address,
-          directors, shareholders, company_activities, shares_issued,
-          price_per_share, discrepancies
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        RETURNING id
-      `);
+      let result;
       
-      const result = stmt.get(
-        dataToStore.company_name,
-        dataToStore.registration_number,
-        dataToStore.jurisdiction,
-        dataToStore.address,
-        dataToStore.directors,
-        dataToStore.shareholders,
-        dataToStore.company_activities,
-        dataToStore.shares_issued,
-        dataToStore.price_per_share,
-        dataToStore.discrepancies
-      );
-      
-      return {
-        message: "Company stored successfully",
-        id: result.id
-      };
+      if (existingCompany) {
+        // Update existing company
+        const updateStmt = fastify.kycDb.prepare(`
+          UPDATE companies SET
+            registration_number = ?,
+            jurisdiction = ?,
+            address = ?,
+            directors = ?,
+            shareholders = ?,
+            company_activities = ?,
+            shares_issued = ?,
+            price_per_share = ?,
+            discrepancies = ?
+          WHERE id = ?
+        `);
+        
+        updateStmt.run(
+          dataToStore.registration_number,
+          dataToStore.jurisdiction,
+          dataToStore.address,
+          dataToStore.directors,
+          dataToStore.shareholders,
+          dataToStore.company_activities,
+          dataToStore.shares_issued,
+          dataToStore.price_per_share,
+          dataToStore.discrepancies,
+          existingCompany.id
+        );
+        
+        result = { id: existingCompany.id };
+        return {
+          message: "Company updated successfully",
+          id: result.id
+        };
+      } else {
+        // Insert new company
+        const insertStmt = fastify.kycDb.prepare(`
+          INSERT INTO companies (
+            company_name, registration_number, jurisdiction, address,
+            directors, shareholders, company_activities, shares_issued,
+            price_per_share, discrepancies
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          RETURNING id
+        `);
+        
+        result = insertStmt.get(
+          dataToStore.company_name,
+          dataToStore.registration_number,
+          dataToStore.jurisdiction,
+          dataToStore.address,
+          dataToStore.directors,
+          dataToStore.shareholders,
+          dataToStore.company_activities,
+          dataToStore.shares_issued,
+          dataToStore.price_per_share,
+          dataToStore.discrepancies
+        );
+        
+        return {
+          message: "Company stored successfully",
+          id: result.id
+        };
+      }
     } catch (err) {
       request.log.error(err);
       reply.code(500).send({ 
@@ -635,15 +728,24 @@ async function kycRoutes(fastify, options) {
           });
         }
         
+        // Log that we're updating an existing entry
+        request.log.info(`Updating existing director: ${director.director_name} for company ${director.company_name}`);
+        
         // Existing entry found and can be updated, perform an update instead
         const updateStmt = fastify.kycDb.prepare(`
           UPDATE directors SET 
             id_number = ?,
+            id_number_source = ?,
             id_type = ?,
+            id_type_source = ?,
             nationality = ?,
+            nationality_source = ?,
             residential_address = ?,
+            residential_address_source = ?,
             tel_number = ?,
+            tel_number_source = ?,
             email_address = ?,
+            email_address_source = ?,
             verification_status = ?,
             kyc_status = ?,
             updated_at = CURRENT_TIMESTAMP
@@ -651,14 +753,20 @@ async function kycRoutes(fastify, options) {
         `);
         
         updateStmt.run(
-          director.id_number || null,
-          director.id_type || null,
-          director.nationality || null,
-          director.residential_address || null,
-          director.tel_number || null,
-          director.email_address || null,
-          director.verification_status || 'pending',
-          director.kyc_status || null,
+          director.id_number || existingDirector.id_number,
+          director.id_number_source || existingDirector.id_number_source,
+          director.id_type || existingDirector.id_type,
+          director.id_type_source || existingDirector.id_type_source,
+          director.nationality || existingDirector.nationality,
+          director.nationality_source || existingDirector.nationality_source,
+          director.residential_address || existingDirector.residential_address,
+          director.residential_address_source || existingDirector.residential_address_source,
+          director.tel_number || existingDirector.tel_number,
+          director.tel_number_source || existingDirector.tel_number_source,
+          director.email_address || existingDirector.email_address,
+          director.email_address_source || existingDirector.email_address_source,
+          director.verification_status || existingDirector.verification_status,
+          director.kyc_status || existingDirector.kyc_status,
           director.company_name,
           director.director_name
         );
@@ -668,34 +776,49 @@ async function kycRoutes(fastify, options) {
           company: director.company_name,
           director: director.director_name
         };
+      } else {
+        // Log that we're creating a new entry
+        request.log.info(`Creating new director: ${director.director_name} for company ${director.company_name}`);
+        
+        // New director entry, perform insert
+        const insertStmt = fastify.kycDb.prepare(`
+          INSERT INTO directors (
+            company_name, director_name, 
+            id_number, id_number_source, 
+            id_type, id_type_source, 
+            nationality, nationality_source, 
+            residential_address, residential_address_source, 
+            tel_number, tel_number_source, 
+            email_address, email_address_source, 
+            verification_status, kyc_status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        
+        insertStmt.run(
+          director.company_name,
+          director.director_name,
+          director.id_number || null,
+          director.id_number_source || null,
+          director.id_type || null,
+          director.id_type_source || null,
+          director.nationality || null,
+          director.nationality_source || null,
+          director.residential_address || null,
+          director.residential_address_source || null,
+          director.tel_number || null,
+          director.tel_number_source || null,
+          director.email_address || null,
+          director.email_address_source || null,
+          director.verification_status || 'pending',
+          director.kyc_status || null
+        );
+        
+        return {
+          message: "Director added successfully",
+          company: director.company_name,
+          director: director.director_name
+        };
       }
-      
-      // New director entry, perform insert
-      const insertStmt = fastify.kycDb.prepare(`
-        INSERT INTO directors (
-          company_name, director_name, id_number, id_type, nationality,
-          residential_address, tel_number, email_address, verification_status, kyc_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-      
-      insertStmt.run(
-        director.company_name,
-        director.director_name,
-        director.id_number || null,
-        director.id_type || null,
-        director.nationality || null,
-        director.residential_address || null,
-        director.tel_number || null,
-        director.email_address || null,
-        director.verification_status || 'pending',
-        director.kyc_status || null
-      );
-      
-      return {
-        message: "Director added successfully",
-        company: director.company_name,
-        director: director.director_name
-      };
     } catch (err) {
       request.log.error(err);
       reply.code(500).send({ 
@@ -873,17 +996,28 @@ async function kycRoutes(fastify, options) {
           });
         }
         
+        // Log that we're updating an existing entry
+        request.log.info(`Updating existing shareholder: ${shareholder.shareholder_name} for company ${shareholder.company_name}`);
+        
         // Existing entry found and can be updated, perform an update instead
         const updateStmt = fastify.kycDb.prepare(`
           UPDATE shareholders SET 
             shares_owned = ?,
+            shares_owned_source = ?,
             price_per_share = ?,
+            price_per_share_source = ?,
             id_number = ?,
+            id_number_source = ?,
             id_type = ?,
+            id_type_source = ?,
             nationality = ?,
+            nationality_source = ?,
             address = ?,
+            address_source = ?,
             tel_number = ?,
+            tel_number_source = ?,
             email_address = ?,
+            email_address_source = ?,
             verification_status = ?,
             kyc_status = ?,
             is_company = ?,
@@ -892,17 +1026,25 @@ async function kycRoutes(fastify, options) {
         `);
         
         updateStmt.run(
-          shareholder.shares_owned || null,
-          shareholder.price_per_share || null,
-          shareholder.id_number || null,
-          shareholder.id_type || null,
-          shareholder.nationality || null,
-          shareholder.address || null,
-          shareholder.tel_number || null,
-          shareholder.email_address || null,
-          shareholder.verification_status || 'pending',
-          shareholder.kyc_status || null,
-          shareholder.is_company || 0,
+          shareholder.shares_owned || existingShareholder.shares_owned,
+          shareholder.shares_owned_source || existingShareholder.shares_owned_source,
+          shareholder.price_per_share || existingShareholder.price_per_share,
+          shareholder.price_per_share_source || existingShareholder.price_per_share_source,
+          shareholder.id_number || existingShareholder.id_number,
+          shareholder.id_number_source || existingShareholder.id_number_source,
+          shareholder.id_type || existingShareholder.id_type,
+          shareholder.id_type_source || existingShareholder.id_type_source, 
+          shareholder.nationality || existingShareholder.nationality,
+          shareholder.nationality_source || existingShareholder.nationality_source,
+          shareholder.address || existingShareholder.address,
+          shareholder.address_source || existingShareholder.address_source,
+          shareholder.tel_number || existingShareholder.tel_number,
+          shareholder.tel_number_source || existingShareholder.tel_number_source,
+          shareholder.email_address || existingShareholder.email_address,
+          shareholder.email_address_source || existingShareholder.email_address_source,
+          shareholder.verification_status || existingShareholder.verification_status,
+          shareholder.kyc_status || existingShareholder.kyc_status,
+          shareholder.is_company !== undefined ? shareholder.is_company : existingShareholder.is_company,
           shareholder.company_name,
           shareholder.shareholder_name
         );
@@ -912,38 +1054,56 @@ async function kycRoutes(fastify, options) {
           company: shareholder.company_name,
           shareholder: shareholder.shareholder_name
         };
+      } else {
+        // Log that we're creating a new entry
+        request.log.info(`Creating new shareholder: ${shareholder.shareholder_name} for company ${shareholder.company_name}`);
+        
+        // New shareholder entry, perform insert
+        const insertStmt = fastify.kycDb.prepare(`
+          INSERT INTO shareholders (
+            company_name, shareholder_name, 
+            shares_owned, shares_owned_source, 
+            price_per_share, price_per_share_source, 
+            id_number, id_number_source, 
+            id_type, id_type_source, 
+            nationality, nationality_source, 
+            address, address_source, 
+            tel_number, tel_number_source, 
+            email_address, email_address_source, 
+            verification_status, kyc_status, is_company
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        
+        insertStmt.run(
+          shareholder.company_name,
+          shareholder.shareholder_name,
+          shareholder.shares_owned || null,
+          shareholder.shares_owned_source || null,
+          shareholder.price_per_share || null,
+          shareholder.price_per_share_source || null,
+          shareholder.id_number || null,
+          shareholder.id_number_source || null,
+          shareholder.id_type || null,
+          shareholder.id_type_source || null,
+          shareholder.nationality || null,
+          shareholder.nationality_source || null,
+          shareholder.address || null,
+          shareholder.address_source || null,
+          shareholder.tel_number || null,
+          shareholder.tel_number_source || null,
+          shareholder.email_address || null,
+          shareholder.email_address_source || null,
+          shareholder.verification_status || 'pending',
+          shareholder.kyc_status || null,
+          shareholder.is_company || 0
+        );
+        
+        return {
+          message: "Shareholder added successfully",
+          company: shareholder.company_name,
+          shareholder: shareholder.shareholder_name
+        };
       }
-      
-      // New shareholder entry, perform insert
-      const insertStmt = fastify.kycDb.prepare(`
-        INSERT INTO shareholders (
-          company_name, shareholder_name, shares_owned, price_per_share, id_number, 
-          id_type, nationality, address, tel_number, email_address, 
-          verification_status, kyc_status, is_company
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-      
-      insertStmt.run(
-        shareholder.company_name,
-        shareholder.shareholder_name,
-        shareholder.shares_owned || null,
-        shareholder.price_per_share || null,
-        shareholder.id_number || null,
-        shareholder.id_type || null,
-        shareholder.nationality || null,
-        shareholder.address || null,
-        shareholder.tel_number || null,
-        shareholder.email_address || null,
-        shareholder.verification_status || 'pending',
-        shareholder.kyc_status || null,
-        shareholder.is_company || 0
-      );
-      
-      return {
-        message: "Shareholder added successfully",
-        company: shareholder.company_name,
-        shareholder: shareholder.shareholder_name
-      };
     } catch (err) {
       request.log.error(err);
       reply.code(500).send({ 
