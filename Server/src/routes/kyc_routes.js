@@ -531,6 +531,498 @@ async function kycRoutes(fastify, options) {
       });
     }
   });
+
+  // ========== DIRECTORS API ROUTES ==========
+
+  // Get all directors (optionally filtered by company)
+  fastify.get("/kyc/directors", async (request, reply) => {
+    try {
+      const { company } = request.query;
+      
+      let query = "SELECT * FROM directors";
+      let params = [];
+      
+      if (company) {
+        query += " WHERE company_name = ?";
+        params.push(company);
+      }
+      
+      const directors = fastify.kycDb
+        .prepare(query)
+        .all(...params);
+      
+      return { directors };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({ 
+        error: "Internal Server Error", 
+        message: err.message 
+      });
+    }
+  });
+
+  // Get a specific director by company name and director name
+  fastify.get("/kyc/directors/:company/:director", async (request, reply) => {
+    try {
+      const { company, director } = request.params;
+      
+      const directorRecord = fastify.kycDb
+        .prepare("SELECT * FROM directors WHERE company_name = ? AND director_name = ?")
+        .get(company, director);
+      
+      if (!directorRecord) {
+        return reply.code(404).send({ error: "Director not found" });
+      }
+      
+      return { director: directorRecord };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({ 
+        error: "Internal Server Error", 
+        message: err.message 
+      });
+    }
+  });
+
+  // Get all directors for a specific company
+  fastify.get("/kyc/companies/:company/directors", async (request, reply) => {
+    try {
+      const { company } = request.params;
+      
+      // Check if company exists
+      const companyExists = fastify.kycDb
+        .prepare("SELECT 1 FROM companies WHERE company_name = ?")
+        .get(company);
+        
+      if (!companyExists) {
+        return reply.code(404).send({ error: "Company not found" });
+      }
+      
+      const directors = fastify.kycDb
+        .prepare("SELECT * FROM directors WHERE company_name = ?")
+        .all(company);
+      
+      return { directors };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({ 
+        error: "Internal Server Error", 
+        message: err.message 
+      });
+    }
+  });
+
+  // Add a director
+  fastify.post("/kyc/directors", async (request, reply) => {
+    try {
+      const director = request.body;
+      
+      if (!director.company_name || !director.director_name) {
+        return reply.code(400).send({ error: "Company name and director name are required" });
+      }
+      
+      // Check if this director entry already exists
+      const existingDirector = fastify.kycDb
+        .prepare("SELECT * FROM directors WHERE company_name = ? AND director_name = ?")
+        .get(director.company_name, director.director_name);
+      
+      if (existingDirector) {
+        // Check if it's not verified - we don't update if it's already marked as not verified
+        if (existingDirector.verification_status === 'not_verified') {
+          return reply.code(400).send({ 
+            error: "Cannot update director", 
+            message: "This director entry has verification issues and cannot be updated" 
+          });
+        }
+        
+        // Existing entry found and can be updated, perform an update instead
+        const updateStmt = fastify.kycDb.prepare(`
+          UPDATE directors SET 
+            id_number = ?,
+            id_type = ?,
+            nationality = ?,
+            residential_address = ?,
+            tel_number = ?,
+            email_address = ?,
+            verification_status = ?,
+            kyc_status = ?,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE company_name = ? AND director_name = ?
+        `);
+        
+        updateStmt.run(
+          director.id_number || null,
+          director.id_type || null,
+          director.nationality || null,
+          director.residential_address || null,
+          director.tel_number || null,
+          director.email_address || null,
+          director.verification_status || 'pending',
+          director.kyc_status || null,
+          director.company_name,
+          director.director_name
+        );
+        
+        return {
+          message: "Director updated successfully",
+          company: director.company_name,
+          director: director.director_name
+        };
+      }
+      
+      // New director entry, perform insert
+      const insertStmt = fastify.kycDb.prepare(`
+        INSERT INTO directors (
+          company_name, director_name, id_number, id_type, nationality,
+          residential_address, tel_number, email_address, verification_status, kyc_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      
+      insertStmt.run(
+        director.company_name,
+        director.director_name,
+        director.id_number || null,
+        director.id_type || null,
+        director.nationality || null,
+        director.residential_address || null,
+        director.tel_number || null,
+        director.email_address || null,
+        director.verification_status || 'pending',
+        director.kyc_status || null
+      );
+      
+      return {
+        message: "Director added successfully",
+        company: director.company_name,
+        director: director.director_name
+      };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({ 
+        error: "Internal Server Error", 
+        message: err.message 
+      });
+    }
+  });
+
+  // Update a director
+  fastify.put("/kyc/directors/:company/:director", async (request, reply) => {
+    try {
+      const { company, director } = request.params;
+      const updates = request.body;
+      
+      // Check if this director exists
+      const existingDirector = fastify.kycDb
+        .prepare("SELECT * FROM directors WHERE company_name = ? AND director_name = ?")
+        .get(company, director);
+      
+      if (!existingDirector) {
+        return reply.code(404).send({ error: "Director not found" });
+      }
+      
+      // Check if it's already marked as not_verified
+      if (existingDirector.verification_status === 'not_verified') {
+        return reply.code(400).send({ 
+          error: "Cannot update director", 
+          message: "This director entry has verification issues and cannot be updated" 
+        });
+      }
+      
+      // Update the director
+      const updateStmt = fastify.kycDb.prepare(`
+        UPDATE directors SET 
+          id_number = ?,
+          id_type = ?,
+          nationality = ?,
+          residential_address = ?,
+          tel_number = ?,
+          email_address = ?,
+          verification_status = ?,
+          kyc_status = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE company_name = ? AND director_name = ?
+      `);
+      
+      updateStmt.run(
+        updates.id_number !== undefined ? updates.id_number : existingDirector.id_number,
+        updates.id_type !== undefined ? updates.id_type : existingDirector.id_type,
+        updates.nationality !== undefined ? updates.nationality : existingDirector.nationality,
+        updates.residential_address !== undefined ? updates.residential_address : existingDirector.residential_address,
+        updates.tel_number !== undefined ? updates.tel_number : existingDirector.tel_number,
+        updates.email_address !== undefined ? updates.email_address : existingDirector.email_address,
+        updates.verification_status !== undefined ? updates.verification_status : existingDirector.verification_status,
+        updates.kyc_status !== undefined ? updates.kyc_status : existingDirector.kyc_status,
+        company,
+        director
+      );
+      
+      return {
+        message: "Director updated successfully",
+        company,
+        director
+      };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({ 
+        error: "Internal Server Error", 
+        message: err.message 
+      });
+    }
+  });
+
+  // ========== SHAREHOLDERS API ROUTES ==========
+
+  // Get all shareholders (optionally filtered by company)
+  fastify.get("/kyc/shareholders", async (request, reply) => {
+    try {
+      const { company } = request.query;
+      
+      let query = "SELECT * FROM shareholders";
+      let params = [];
+      
+      if (company) {
+        query += " WHERE company_name = ?";
+        params.push(company);
+      }
+      
+      const shareholders = fastify.kycDb
+        .prepare(query)
+        .all(...params);
+      
+      return { shareholders };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({ 
+        error: "Internal Server Error", 
+        message: err.message 
+      });
+    }
+  });
+
+  // Get a specific shareholder by company name and shareholder name
+  fastify.get("/kyc/shareholders/:company/:shareholder", async (request, reply) => {
+    try {
+      const { company, shareholder } = request.params;
+      
+      const shareholderRecord = fastify.kycDb
+        .prepare("SELECT * FROM shareholders WHERE company_name = ? AND shareholder_name = ?")
+        .get(company, shareholder);
+      
+      if (!shareholderRecord) {
+        return reply.code(404).send({ error: "Shareholder not found" });
+      }
+      
+      return { shareholder: shareholderRecord };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({ 
+        error: "Internal Server Error", 
+        message: err.message 
+      });
+    }
+  });
+
+  // Get all shareholders for a specific company
+  fastify.get("/kyc/companies/:company/shareholders", async (request, reply) => {
+    try {
+      const { company } = request.params;
+      
+      // Check if company exists
+      const companyExists = fastify.kycDb
+        .prepare("SELECT 1 FROM companies WHERE company_name = ?")
+        .get(company);
+        
+      if (!companyExists) {
+        return reply.code(404).send({ error: "Company not found" });
+      }
+      
+      const shareholders = fastify.kycDb
+        .prepare("SELECT * FROM shareholders WHERE company_name = ?")
+        .all(company);
+      
+      return { shareholders };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({ 
+        error: "Internal Server Error", 
+        message: err.message 
+      });
+    }
+  });
+
+  // Add a shareholder
+  fastify.post("/kyc/shareholders", async (request, reply) => {
+    try {
+      const shareholder = request.body;
+      
+      if (!shareholder.company_name || !shareholder.shareholder_name) {
+        return reply.code(400).send({ error: "Company name and shareholder name are required" });
+      }
+      
+      // Check if this shareholder entry already exists
+      const existingShareholder = fastify.kycDb
+        .prepare("SELECT * FROM shareholders WHERE company_name = ? AND shareholder_name = ?")
+        .get(shareholder.company_name, shareholder.shareholder_name);
+      
+      if (existingShareholder) {
+        // Check if it's not verified - we don't update if it's already marked as not verified
+        if (existingShareholder.verification_status === 'not_verified') {
+          return reply.code(400).send({ 
+            error: "Cannot update shareholder", 
+            message: "This shareholder entry has verification issues and cannot be updated" 
+          });
+        }
+        
+        // Existing entry found and can be updated, perform an update instead
+        const updateStmt = fastify.kycDb.prepare(`
+          UPDATE shareholders SET 
+            shares_owned = ?,
+            price_per_share = ?,
+            id_number = ?,
+            id_type = ?,
+            nationality = ?,
+            address = ?,
+            tel_number = ?,
+            email_address = ?,
+            verification_status = ?,
+            kyc_status = ?,
+            is_company = ?,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE company_name = ? AND shareholder_name = ?
+        `);
+        
+        updateStmt.run(
+          shareholder.shares_owned || null,
+          shareholder.price_per_share || null,
+          shareholder.id_number || null,
+          shareholder.id_type || null,
+          shareholder.nationality || null,
+          shareholder.address || null,
+          shareholder.tel_number || null,
+          shareholder.email_address || null,
+          shareholder.verification_status || 'pending',
+          shareholder.kyc_status || null,
+          shareholder.is_company || 0,
+          shareholder.company_name,
+          shareholder.shareholder_name
+        );
+        
+        return {
+          message: "Shareholder updated successfully",
+          company: shareholder.company_name,
+          shareholder: shareholder.shareholder_name
+        };
+      }
+      
+      // New shareholder entry, perform insert
+      const insertStmt = fastify.kycDb.prepare(`
+        INSERT INTO shareholders (
+          company_name, shareholder_name, shares_owned, price_per_share, id_number, 
+          id_type, nationality, address, tel_number, email_address, 
+          verification_status, kyc_status, is_company
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      
+      insertStmt.run(
+        shareholder.company_name,
+        shareholder.shareholder_name,
+        shareholder.shares_owned || null,
+        shareholder.price_per_share || null,
+        shareholder.id_number || null,
+        shareholder.id_type || null,
+        shareholder.nationality || null,
+        shareholder.address || null,
+        shareholder.tel_number || null,
+        shareholder.email_address || null,
+        shareholder.verification_status || 'pending',
+        shareholder.kyc_status || null,
+        shareholder.is_company || 0
+      );
+      
+      return {
+        message: "Shareholder added successfully",
+        company: shareholder.company_name,
+        shareholder: shareholder.shareholder_name
+      };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({ 
+        error: "Internal Server Error", 
+        message: err.message 
+      });
+    }
+  });
+
+  // Update a shareholder
+  fastify.put("/kyc/shareholders/:company/:shareholder", async (request, reply) => {
+    try {
+      const { company, shareholder } = request.params;
+      const updates = request.body;
+      
+      // Check if this shareholder exists
+      const existingShareholder = fastify.kycDb
+        .prepare("SELECT * FROM shareholders WHERE company_name = ? AND shareholder_name = ?")
+        .get(company, shareholder);
+      
+      if (!existingShareholder) {
+        return reply.code(404).send({ error: "Shareholder not found" });
+      }
+      
+      // Check if it's already marked as not_verified
+      if (existingShareholder.verification_status === 'not_verified') {
+        return reply.code(400).send({ 
+          error: "Cannot update shareholder", 
+          message: "This shareholder entry has verification issues and cannot be updated" 
+        });
+      }
+      
+      // Update the shareholder
+      const updateStmt = fastify.kycDb.prepare(`
+        UPDATE shareholders SET 
+          shares_owned = ?,
+          price_per_share = ?,
+          id_number = ?,
+          id_type = ?,
+          nationality = ?,
+          address = ?,
+          tel_number = ?,
+          email_address = ?,
+          verification_status = ?,
+          kyc_status = ?,
+          is_company = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE company_name = ? AND shareholder_name = ?
+      `);
+      
+      updateStmt.run(
+        updates.shares_owned !== undefined ? updates.shares_owned : existingShareholder.shares_owned,
+        updates.price_per_share !== undefined ? updates.price_per_share : existingShareholder.price_per_share,
+        updates.id_number !== undefined ? updates.id_number : existingShareholder.id_number,
+        updates.id_type !== undefined ? updates.id_type : existingShareholder.id_type,
+        updates.nationality !== undefined ? updates.nationality : existingShareholder.nationality,
+        updates.address !== undefined ? updates.address : existingShareholder.address,
+        updates.tel_number !== undefined ? updates.tel_number : existingShareholder.tel_number,
+        updates.email_address !== undefined ? updates.email_address : existingShareholder.email_address,
+        updates.verification_status !== undefined ? updates.verification_status : existingShareholder.verification_status,
+        updates.kyc_status !== undefined ? updates.kyc_status : existingShareholder.kyc_status,
+        updates.is_company !== undefined ? updates.is_company : existingShareholder.is_company,
+        company,
+        shareholder
+      );
+      
+      return {
+        message: "Shareholder updated successfully",
+        company,
+        shareholder
+      };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({ 
+        error: "Internal Server Error", 
+        message: err.message 
+      });
+    }
+  });
 }
 
 module.exports = kycRoutes;

@@ -11,6 +11,8 @@ function initializeKycDatabase() {
     db.exec(`DROP TABLE IF EXISTS individuals`);
     db.exec(`DROP TABLE IF EXISTS companies`);
     db.exec(`DROP TABLE IF EXISTS document_sources`);
+    db.exec(`DROP TABLE IF EXISTS directors`);
+    db.exec(`DROP TABLE IF EXISTS shareholders`);
 
     // Create individuals table (with text fields for flexibility)
     db.exec(`
@@ -59,6 +61,47 @@ function initializeKycDatabase() {
         file_path TEXT,
         content TEXT,
         extraction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Create directors table with composite primary key
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS directors (
+        company_name TEXT NOT NULL,
+        director_name TEXT NOT NULL,
+        id_number TEXT,
+        id_type TEXT,
+        nationality TEXT,
+        residential_address TEXT,
+        tel_number TEXT,
+        email_address TEXT,
+        verification_status TEXT DEFAULT 'pending',
+        kyc_status TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (company_name, director_name)
+      );
+    `);
+
+    // Create shareholders table with composite primary key
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS shareholders (
+        company_name TEXT NOT NULL,
+        shareholder_name TEXT NOT NULL,
+        shares_owned TEXT,
+        price_per_share TEXT,
+        id_number TEXT,
+        id_type TEXT,
+        nationality TEXT,
+        address TEXT,
+        tel_number TEXT,
+        email_address TEXT,
+        verification_status TEXT DEFAULT 'pending',
+        kyc_status TEXT,
+        is_company INTEGER DEFAULT 0, /* 0 for individual, 1 for company */
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (company_name, shareholder_name)
       );
     `);
 

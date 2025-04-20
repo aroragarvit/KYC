@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 // Define schemas for input and output data
 const workflowTriggerSchema = z.object({
   company: z.string().describe('The company name to process KYC documents for'),
@@ -47,6 +48,49 @@ const sourceSchema = z.object({
   value: z.string(),
 });
 
+interface Source {
+  documentId: number;
+  documentName: string;
+  documentType: string;
+  value: string;
+}
+
+interface Discrepancy {
+  field: string;
+  values: string[];
+  sources: string[];
+}
+
+interface Individual {
+  full_name: string;
+  alternative_names?: string[];
+  id_numbers?: Record<string, Source>;
+  id_types?: Record<string, Source>;
+  nationalities?: Record<string, Source>;
+  addresses?: Record<string, Source>;
+  emails?: Record<string, Source>;
+  phones?: Record<string, Source>;
+  roles?: Record<string, string>;
+  shares_owned?: Record<string, Source>;
+  price_per_share?: Record<string, Source>;
+  discrepancies?: Discrepancy[];
+}
+
+interface CompanyRecord {
+  company_name: string;
+  alternative_names?: string[];
+  registration_number?: Record<string, Source>;
+  jurisdiction?: Record<string, Source>;
+  address?: Record<string, Source>;
+  directors?: string[];
+  shareholders?: string[];
+  company_activities?: Record<string, Source>;
+  shares_issued?: Record<string, Source>;
+  price_per_share?: Record<string, Source>;
+  discrepancies?: Discrepancy[];
+  emails?: Record<string, Source>;
+}
+
 const individualSchema = z.object({
   full_name: z.string(),
   alternative_names: z.array(z.string()).optional(),
@@ -70,6 +114,7 @@ const individualSchema = z.object({
 
 const companySchema = z.object({
   company_name: z.string(),
+  alternative_names: z.array(z.string()).optional(),
   registration_number: z.record(z.string(), sourceSchema).optional(),
   jurisdiction: z.record(z.string(), sourceSchema).optional(),
   address: z.record(z.string(), sourceSchema).optional(),
@@ -325,6 +370,7 @@ const classifyDocuments = new Step({
     }
   },
 });
+
 // Step 4: Process documents and extract information
 const extractInformation = new Step({
   id: 'extract-information',
@@ -492,6 +538,7 @@ const extractInformation = new Step({
     }
   },
 });
+
 // Step 5: Process discrepancies
 const processDiscrepancies = new Step({
   id: 'process-discrepancies',
@@ -507,8 +554,8 @@ const processDiscrepancies = new Step({
     console.log("Processing discrepancies in extracted data...");
     
     // Process individuals
-    extractedData.individuals.forEach(individual => {
-      const discrepancies = [];
+    extractedData.individuals.forEach((individual: any) => {
+      const discrepancies: { field: string; values: string[]; sources: string[] }[] = [];
       
       // Check for discrepancies in each field with multiple sources
       checkFieldDiscrepancies(individual, 'id_numbers', discrepancies);
@@ -522,8 +569,8 @@ const processDiscrepancies = new Step({
     });
     
     // Process companies
-    extractedData.companies.forEach(company => {
-      const discrepancies = [];
+    extractedData.companies.forEach((company: any) => {
+      const discrepancies: { field: string; values: string[]; sources: string[] }[] = [];
       
       // Check for discrepancies in each field with multiple sources
       checkFieldDiscrepancies(company, 'registration_number', discrepancies);
@@ -537,6 +584,36 @@ const processDiscrepancies = new Step({
     return extractedData;
   },
 });
+
+// Helper: check for discrepancies in a field with strong typing
+function checkFieldDiscrepancies(
+  entity: any,
+  field: string,
+  discrepancies: { field: string; values: string[]; sources: string[] }[]
+): void {
+  const valObj = entity[field];
+  if (valObj && typeof valObj === 'object' && !Array.isArray(valObj)) {
+    // Collect unique values and their sources
+    const values: Set<string> = new Set<string>();
+    const sources: string[] = [];
+    Object.entries(valObj).forEach(
+      ([srcKey, srcInfo]: [string, any]) => {
+        if (srcInfo && typeof srcInfo.value === 'string') {
+          values.add(srcInfo.value);
+          sources.push(srcKey);
+        }
+      }
+    );
+    // If multiple unique values detected
+    if (values.size > 1) {
+      discrepancies.push({
+        field,
+        values: Array.from(values),
+        sources,
+      });
+    }
+  }
+}
 
 // Step 6: Store extracted information
 const storeInformation = new Step({
@@ -596,6 +673,8 @@ const storeInformation = new Step({
         
         // Process directors for this company after storing/updating
         await processDirectorsForCompany(company);
+        // Process shareholders for this company after storing directors
+        await processShareholdersForCompany(company);
       } catch (error) {
         if (error.response && error.response.status === 404) {
           // Company not found, create new
@@ -604,6 +683,8 @@ const storeInformation = new Step({
           
           // Process directors for this new company
           await processDirectorsForCompany(company);
+          // Process shareholders for this new company
+          await processShareholdersForCompany(company);
         } else {
           console.error(`Error storing company ${company.company_name}:`, error);
         }
@@ -614,8 +695,8 @@ const storeInformation = new Step({
   },
 });
 
-// Modified function to only log director information
-async function processDirectorsForCompany(company) {
+// Process directors for company and store in dedicated table
+async function processDirectorsForCompany(company: CompanyRecord): Promise<void> {
   console.log(`\n=== Processing directors for company: ${company.company_name} ===\n`);
   
   // Log company details table with verification status
@@ -623,20 +704,14 @@ async function processDirectorsForCompany(company) {
   console.log("===================");
   console.log(`a. Intended Company Name: ${company.company_name}`);
   
-  // Extract alternative names if they exist in the data
-  const altNames = [];
-  if (company.alternative_names) {
-    altNames.push(...company.alternative_names);
-  }
+  // Extract alternative names
+  const altNames: string[] = company.alternative_names || [];
   console.log(`b. Alternative Company Name 1: ${altNames[0] || "N/A"}`);
   console.log(`c. Alternative Company Name 2: ${altNames[1] || "N/A"}`);
   
-  // Try to extract company activities from various fields
-  let companyActivities = "Unknown";
-  if (company.company_activities) {
-    companyActivities = company.company_activities;
-  }
-  console.log(`d. Company Activities: ${companyActivities}`);
+  // Extract company activities
+  const actInfo = getValueAndSource(company.company_activities);
+  console.log(`d. Company Activities: ${actInfo.value || "Unknown"}`);
   
   // Extract registered address
   let registeredAddress = "Unknown";
@@ -666,11 +741,25 @@ async function processDirectorsForCompany(company) {
     const allIndividuals = response.data.individuals || [];
     
     for (const directorName of directorNames) {
-      const director = allIndividuals.find(ind => ind.full_name === directorName);
+      const director = allIndividuals.find((ind: any) => ind.full_name === directorName);
       
       if (!director) {
+        // Log missing director information
         console.log(`| ${directorName} (Unknown) | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | pending | Missing all required information |`);
         companyVerificationStatus = "pending";
+        
+        // Store minimal data about this missing director
+        try {
+          await axios.post('http://localhost:3000/kyc/directors', {
+            company_name: company.company_name,
+            director_name: directorName,
+            verification_status: 'pending',
+            kyc_status: 'Missing all required information'
+          });
+        } catch (storeError: any) {
+          console.error(`Error storing director data for ${directorName}:`, storeError?.message || storeError);
+        }
+        
         continue;
       }
       
@@ -683,22 +772,22 @@ async function processDirectorsForCompany(company) {
       const emailInfo = getValueAndSource(director.emails);
       
       // Check for document types in sources
-      const hasIdDocument = checkDocumentTypeExists(director, ['identity_document', 'nric', 'passport', 'fin']);
-      const hasAddressProof = checkDocumentTypeExists(director, ['proof_of_address']);
+      const hasIdDocument = checkDocumentTypeExists(director.id_numbers, ['identity_document', 'nric', 'passport', 'fin']);
+      const hasAddressProof = checkDocumentTypeExists(director.addresses, ['proof_of_address']);
       
       // Determine verification status and KYC status
       let verificationStatus = "verified";
-      let kycStatus = [];
+      let kycStatus: string[] = [];
       
       // Check for discrepancies
       if (director.discrepancies && director.discrepancies.length > 0) {
         verificationStatus = "not_verified";
-        director.discrepancies.forEach(d => {
+        director.discrepancies.forEach((d: Discrepancy) => {
           kycStatus.push(`Discrepancy in ${d.field}: ${d.values.join(" vs ")} (Sources: ${d.sources.join(", ")})`);
         });
       } else {
         // Check for missing requirements
-        const missingRequirements = [];
+        const missingRequirements: string[] = [];
         
         if (!hasIdDocument) {
           missingRequirements.push("Missing identification document");
@@ -740,9 +829,29 @@ async function processDirectorsForCompany(company) {
         `${emailInfo.value || "Missing"} (${emailInfo.source}) | ` +
         `${verificationStatus} | ${kycStatusDisplay} |`
       );
+      
+      // Store this director information in the directors table
+      try {
+        await axios.post('http://localhost:3000/kyc/directors', {
+          company_name: company.company_name,
+          director_name: director.full_name,
+          id_number: idInfo.value,
+          id_type: idTypeInfo.value,
+          nationality: nationalityInfo.value,
+          residential_address: addressInfo.value,
+          tel_number: phoneInfo.value,
+          email_address: emailInfo.value,
+          verification_status: verificationStatus,
+          kyc_status: kycStatusDisplay
+        });
+        
+        console.log(`Stored/updated director information for ${director.full_name}`);
+      } catch (storeError: any) {
+        console.error(`Error storing director data for ${director.full_name}:`, storeError?.message || storeError);
+      }
     }
-  } catch (error) {
-    console.error("Error fetching individuals:", error);
+  } catch (error: any) {
+    console.error("Error fetching individuals:", error?.message || error);
     companyVerificationStatus = "pending";
   }
   
@@ -750,8 +859,179 @@ async function processDirectorsForCompany(company) {
   console.log("\n=== End of Processing ===\n");
 }
 
+// Process shareholders for a company and store in dedicated table
+async function processShareholdersForCompany(company: CompanyRecord): Promise<void> {
+  console.log(`\n=== Processing shareholders for company: ${company.company_name} ===\n`);
+  console.log("SHAREHOLDERS TABLE");
+  console.log("==================");
+  console.log("| Name (Source) | Shares Owned (Source) | Price per Share (Source) | ID No. (Source) | ID Type (Source) | Nationality (Source) | Address (Source) | Tel. No. (Source) | Email Address (Source) | Verification Status | KYC Status |");
+  console.log("|--------------|------------------------|-------------------------|-----------------|------------------|---------------------|-----------------|------------------|---------------------|-------------------|-------------|");
+  let overallStatus = "verified";
+  try {
+    const indResp = await axios.get('http://localhost:3000/kyc/individuals');
+    const allIndividuals = indResp.data.individuals || [];
+    const compResp = await axios.get('http://localhost:3000/kyc/companies');
+    const allCompanies = compResp.data.companies || [];
+    console.log("Shareholders:", company.shareholders);
+    for (const shEntry of company.shareholders || []) {
+      // parse "Name (XX%)" entries
+      let parsedName = shEntry;
+      let sharePctStr = "";
+      const shareMatch = shEntry.match(/^(.+?)\s*\(([^)]+)\)$/);
+      if (shareMatch) {
+        parsedName = shareMatch[1].trim();
+        sharePctStr = shareMatch[2].trim();
+      }
+      let isIndividual = false;
+      const individual = allIndividuals.find((ind: any) => ind.full_name.trim().toLowerCase() === parsedName.toLowerCase());
+      if (individual) isIndividual = true;
+      let idInfo, idTypeInfo, nationalityInfo, addressInfo, phoneInfo, emailInfo, sharesInfo, priceInfo;
+      let verificationStatus = "verified";
+      let kycStatus: string[] = [];
+      
+      if (isIndividual) {
+        // Process individual shareholder
+        idInfo = getValueAndSource(individual.id_numbers);
+        idTypeInfo = getValueAndSource(individual.id_types);
+        nationalityInfo = getValueAndSource(individual.nationalities);
+        addressInfo = getValueAndSource(individual.addresses);
+        phoneInfo = getValueAndSource(individual.phones);
+        emailInfo = getValueAndSource(individual.emails);
+        sharesInfo = sharePctStr ? { value: sharePctStr, source: "Declaration" } : getValueAndSource(individual.shares_owned);
+        priceInfo = getValueAndSource(individual.price_per_share);
+        const isLocal = nationalityInfo.value?.toLowerCase().includes('singapore');
+        const hasNRIC = checkDocumentTypeExists(individual.id_numbers, ['nric']);
+        const hasPassport = checkDocumentTypeExists(individual.id_numbers, ['passport']);
+        const hasAddrProof = checkDocumentTypeExists(individual.addresses, ['proof_of_address']);
+        
+        if (individual.discrepancies?.length) {
+          verificationStatus = "not_verified";
+          individual.discrepancies!.forEach((d: Discrepancy) => kycStatus.push(`Discrepancy in ${d.field}: ${d.values.join(" vs ")} (Sources: ${d.sources.join(", ")})`));
+        } else {
+          const missing: string[] = [];
+          if (isLocal && !hasNRIC) missing.push("Missing NRIC");
+          if (!isLocal && !hasPassport) missing.push("Missing passport");
+          if (!hasAddrProof) missing.push("Missing proof of address");
+          if (!emailInfo.value) missing.push("Missing email");
+          if (missing.length) { verificationStatus = "pending"; kycStatus = missing; }
+        }
+        
+        // Store individual shareholder in the shareholders table
+        try {
+          await axios.post('http://localhost:3000/kyc/shareholders', {
+            company_name: company.company_name,
+            shareholder_name: parsedName,
+            shares_owned: sharesInfo.value,
+            price_per_share: priceInfo.value,
+            id_number: idInfo.value,
+            id_type: idTypeInfo.value,
+            nationality: nationalityInfo.value,
+            address: addressInfo.value,
+            tel_number: phoneInfo.value,
+            email_address: emailInfo.value,
+            verification_status: verificationStatus,
+            kyc_status: kycStatus.length ? kycStatus.join("; ") : "Complete",
+            is_company: 0  // Individual
+          });
+          console.log(`Stored/updated individual shareholder information for ${parsedName}`);
+        } catch (storeError: any) {
+          console.error(`Error storing individual shareholder data for ${parsedName}:`, storeError?.message || storeError);
+        }
+        
+      } else {
+        // Process corporate shareholder
+        const compEnt = allCompanies.find((c: any) => c.company_name.trim().toLowerCase() === parsedName.toLowerCase());
+        if (!compEnt) {
+          console.log(`| ${parsedName} (Unknown) | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | pending | Missing info |`);
+          overallStatus = "pending";
+          
+          // Store minimal data about this unknown corporate shareholder
+          try {
+            await axios.post('http://localhost:3000/kyc/shareholders', {
+              company_name: company.company_name,
+              shareholder_name: parsedName,
+              shares_owned: sharePctStr,
+              verification_status: 'pending',
+              kyc_status: 'Missing information',
+              is_company: 1  // Company
+            });
+          } catch (storeError: any) {
+            console.error(`Error storing unknown corporate shareholder data for ${parsedName}:`, storeError?.message || storeError);
+          }
+          
+          continue;
+        }
+        
+        idInfo = getValueAndSource(compEnt.registration_number);
+        idTypeInfo = { value: "Registration Number", source: "System" };
+        nationalityInfo = getValueAndSource(compEnt.jurisdiction);
+        addressInfo = getValueAndSource(compEnt.address);
+        phoneInfo = { value: null, source: "No source" };
+        emailInfo = getValueAndSource(compEnt.emails);
+        sharesInfo = sharePctStr ? { value: sharePctStr, source: "Declaration" } : getValueAndSource(compEnt.shares_issued);
+        priceInfo = getValueAndSource(compEnt.price_per_share);
+        const isLocalCorp = nationalityInfo.value?.toLowerCase() === 'singapore';
+        const hasBizfile = checkDocumentTypeExists(compEnt.company_activities, ['bizfile']);
+        const hasIncorp = checkDocumentTypeExists(compEnt.registration_number, ['incorporation', 'incumbency']);
+        const hasDirReg = checkDocumentTypeExists(compEnt.company_activities, ['register_of_directors']);
+        const hasAddrProofCorp = checkDocumentTypeExists(compEnt.address, ['proof_of_address']);
+        const hasMemReg = checkDocumentTypeExists(compEnt.shares_issued, ['register_of_members']);
+        
+        if (compEnt.discrepancies?.length) {
+          verificationStatus = "not_verified";
+          compEnt.discrepancies!.forEach((d: Discrepancy) => kycStatus.push(`Discrepancy in ${d.field}: ${d.values.join(" vs ")} (Sources: ${d.sources.join(", ")})`));
+        } else {
+          const missing: string[] = [];
+          if (isLocalCorp && !hasBizfile) missing.push("Missing ACRA Bizfile");
+          if (!isLocalCorp) {
+            if (!hasIncorp) missing.push("Missing incorporation certificate");
+            if (!hasDirReg) missing.push("Missing register of directors");
+          }
+          if (!hasAddrProofCorp) missing.push("Missing proof of address");
+          if (sharesInfo.value && parseFloat(sharesInfo.value) >= 25 && !hasMemReg) missing.push("Missing register of members");
+          if (!emailInfo.value) missing.push("Missing email & signatory");
+          if (missing.length) { verificationStatus = "pending"; kycStatus = missing; }
+        }
+        
+        // Store corporate shareholder in the shareholders table
+        try {
+          await axios.post('http://localhost:3000/kyc/shareholders', {
+            company_name: company.company_name,
+            shareholder_name: parsedName,
+            shares_owned: sharesInfo.value,
+            price_per_share: priceInfo.value,
+            id_number: idInfo.value,
+            id_type: idTypeInfo.value,
+            nationality: nationalityInfo.value,
+            address: addressInfo.value,
+            tel_number: phoneInfo.value,
+            email_address: emailInfo.value,
+            verification_status: verificationStatus,
+            kyc_status: kycStatus.length ? kycStatus.join("; ") : "Complete",
+            is_company: 1  // Company
+          });
+          console.log(`Stored/updated corporate shareholder information for ${parsedName}`);
+        } catch (storeError: any) {
+          console.error(`Error storing corporate shareholder data for ${parsedName}:`, storeError?.message || storeError);
+        }
+      }
+      
+      if (verificationStatus !== "verified") overallStatus = "pending";
+      const statusDisplay = kycStatus.length ? kycStatus.join("; ") : "Complete";
+      console.log(
+        `| ${parsedName} | ${sharesInfo.value || "Missing"} (${sharesInfo.source}) | ${priceInfo.value || "Missing"} (${priceInfo.source}) | ${idInfo.value || "Missing"} (${idInfo.source}) | ${idTypeInfo.value || "Missing"} (${idTypeInfo.source}) | ${nationalityInfo.value || "Missing"} (${nationalityInfo.source}) | ${addressInfo.value || "Missing"} (${addressInfo.source}) | ${phoneInfo.value || "Missing"} (${phoneInfo.source}) | ${emailInfo.value || "Missing"} (${emailInfo.source}) | ${verificationStatus} | ${statusDisplay} |`
+      );
+    }
+  } catch (err: any) {
+    console.error("Error processing shareholders:", err?.message || err);
+    overallStatus = "pending";
+  }
+  console.log("\nCompany Shareholder KYC Status:", overallStatus);
+  console.log("\n=== End of Shareholder Processing ===\n");
+}
+
 // Helper function to get both value and source
-function getValueAndSource(sourceObj) {
+function getValueAndSource(sourceObj: Record<string, Source> | undefined): { value: string | null; source: string } {
   if (!sourceObj || Object.keys(sourceObj).length === 0) {
     return { value: null, source: "No source" };
   }
@@ -763,9 +1043,9 @@ function getValueAndSource(sourceObj) {
 }
 
 // Helper function to format source information
-function getSourceInfo(sourceStr) {
+function getSourceInfo(sourceStr: string): string {
   try {
-    const sources = JSON.parse(sourceStr || '[]');
+    const sources = JSON.parse(sourceStr || '[]') as Source[];
     if (sources.length === 0) return "No source";
     return sources.map(s => s.documentType).join(", ");
   } catch {
@@ -773,96 +1053,17 @@ function getSourceInfo(sourceStr) {
   }
 }
 
-// Helper function to check if specific document types exist in sources
-function checkDocumentTypeExists(director, documentTypes) {
-  const allSources = [
-    ...parseSourceArray(director.id_number_source),
-    ...parseSourceArray(director.residential_address_source)
-  ];
-  
-  return allSources.some(source => 
-    documentTypes.some(type => 
-      source.documentType?.toLowerCase().includes(type.toLowerCase())
+// Helper function to check if a set of records contains required document types
+function checkDocumentTypeExists(
+  sources: Record<string, Source> | undefined,
+  documentTypes: string[]
+): boolean {
+  if (!sources) return false;
+  return Object.values(sources).some(src =>
+    documentTypes.some(type =>
+      src.documentType.toLowerCase().includes(type.toLowerCase())
     )
   );
-}
-
-// Helper function to parse source arrays
-function parseSourceArray(sourceStr) {
-  try {
-    return JSON.parse(sourceStr || '[]');
-  } catch {
-    return [];
-  }
-}
-
-
-
-function checkFieldDiscrepancies(entity, field, discrepancies) {
-  if (entity[field] && typeof entity[field] === 'object' && !Array.isArray(entity[field])) {
-    // Collect unique values from different sources
-    const values = new Set();
-    const sources = [];
-    
-    Object.entries(entity[field]).forEach(([source, sourceInfo]) => {
-      if (sourceInfo && sourceInfo.value) {
-        values.add(sourceInfo.value);
-        sources.push(source);
-      }
-    });
-    
-    // If there are multiple unique values, mark as discrepancy
-    if (values.size > 1) {
-      discrepancies.push({
-        field,
-        values: Array.from(values),
-        sources,
-      });
-    }
-  }
-}
-
-function generateFeatureRow(featureName, entities, valueFn) {
-  let row = `${featureName} | `;
-  row += entities.map(entity => valueFn(entity) || "Not Found").join(" | ");
-  row += "\n";
-  return row;
-}
-
-function formatSourcedInfo(sourcedInfo) {
-  if (!sourcedInfo || Object.keys(sourcedInfo).length === 0) {
-    return "Not Found";
-  }
-
-  return Object.entries(sourcedInfo)
-    .map(([source, info]) => {
-      if (info && info.value) {
-        return `${info.value} (Source: ${info.documentName})`;
-      }
-      return null;
-    })
-    .filter(item => item !== null)
-    .join("<br>");
-}
-
-function formatRoles(roles) {
-  if (!roles || Object.keys(roles).length === 0) {
-    return "None Found";
-  }
-
-  return Object.entries(roles)
-    .map(([entity, role]) => {
-      return `${role} (${entity})`;
-    })
-    .join("<br>");
-}
-
-function formatArray(arr) {
-  if (!arr || arr.length === 0) {
-    return "None Found";
-  }
-
-  return arr.join("<br>");
 }
 
 // Create and commit the workflow
@@ -876,7 +1077,6 @@ const kycDocumentWorkflow = new Workflow({
   .then(extractInformation)
   .then(processDiscrepancies)
   .then(storeInformation)
-  .then(generateSummaryTables);
 
 // Handle errors gracefully
 process.on('unhandledRejection', (reason, promise) => {
