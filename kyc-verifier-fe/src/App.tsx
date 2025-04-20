@@ -1,28 +1,34 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import OrganisationsPage from "./pages/organisations";
-import OrganisationDetailsPage from "./pages/organisation-details";
-import DocumentsPage from "./pages/documents";
-import Navigation from "./components/Navigation";
+
+// Import pages
+import OrganizationsPage from "./pages/organizations";
+import ClientsPage from "./pages/clients";
+import ClientCompaniesPage from "./pages/client-companies";
+import CompanyDetailsPage from "./pages/company-details";
+
+// These pages will be implemented later if needed
+const OrganisationDetailsPage = () => <div>Organization Details</div>;
+const DocumentsPage = () => <div>Documents</div>;
 
 function App() {
   return (
     <Router>
-      <div className="flex min-h-screen">
-        <Navigation />
-        <main className="flex-1 p-4">
-          <Routes>
-            <Route path="/" element={<OrganisationsPage />} />
-            <Route
-              path="/organisations/:organisationName"
-              element={<OrganisationDetailsPage />}
-            />
-            <Route
-              path="/organisations/:organisationName/documents"
-              element={<DocumentsPage />}
-            />
-          </Routes>
-        </main>
-      </div>
+      <Routes>
+        {/* Home route */}
+        <Route path="/" element={<OrganizationsPage />} />
+        
+        {/* Client routes */}
+        <Route path="/clients" element={<ClientsPage />} />
+        <Route path="/client-companies/:id" element={<ClientCompaniesPage />} />
+        <Route path="/company-details/:id" element={<CompanyDetailsPage />} />
+        
+        {/* Organization routes */}
+        <Route path="/organizations" element={<OrganizationsPage />} />
+        <Route path="/organization/:id" element={<OrganisationDetailsPage />} />
+        
+        {/* Document routes */}
+        <Route path="/documents" element={<DocumentsPage />} />
+      </Routes>
     </Router>
   );
 }

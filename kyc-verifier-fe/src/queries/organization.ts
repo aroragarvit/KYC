@@ -125,7 +125,7 @@ export const useUpdateCompanyKycStatus = () => {
         company: Company 
       }>;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['company', variables.companyId] });
     },
@@ -161,7 +161,7 @@ export const useSaveDirector = () => {
         director: Director 
       }>;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['company-directors', variables.companyId] });
     },

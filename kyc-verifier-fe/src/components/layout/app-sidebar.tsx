@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { IconChartBar, IconDashboard, IconFolder, IconHelp, IconInnerShadowTop, IconUsers } from '@tabler/icons-react';
+import { IconChartBar, IconDashboard, IconFolder, IconHelp, IconInnerShadowTop, IconUsers, IconBriefcase } from '@tabler/icons-react';
 
 import { NavMain } from '@/components/layout/nav-main';
 import { NavSecondary } from '@/components/layout/nav-secondary';
@@ -25,6 +25,11 @@ const data = {
       title: 'KYC Applications',
       url: '/kyc-applications',
       icon: IconDashboard,
+    },
+    {
+      title: 'Clients',
+      url: '/clients',
+      icon: IconBriefcase,
     },
     {
       title: 'Organizations',
