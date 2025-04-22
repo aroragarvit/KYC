@@ -38,6 +38,7 @@ fastify.register(dbConnector);
 // Register routes without prefixes
 fastify.register(require("./routes/documents"));
 fastify.register(require("./routes/kyc_routes"));
+fastify.register(require("./routes/messages"));
 // Home route with API documentation
 fastify.get("/", async (request, reply) => {
   return {

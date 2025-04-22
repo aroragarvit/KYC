@@ -118,6 +118,16 @@ function initializeKycDatabase() {
         PRIMARY KEY (company_name, shareholder_name)
       );
     `);
+    
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id TEXT NOT NULL,
+        message TEXT NOT NULL,
+        message_type TEXT NOT NULL CHECK(message_type IN ('agent', 'user')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
     console.log("KYC database tables created successfully.");
 

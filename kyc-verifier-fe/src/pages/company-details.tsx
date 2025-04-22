@@ -8,9 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, FileText, Users, Download } from 'lucide-react';
+import { ArrowLeft, FileText, Users, Download, Send, MessageSquare, User, Bot } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
+import { KycChat } from '@/components/layout/kyc-chat';
 
 // API URL from Vite environment variables
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -351,6 +352,7 @@ export default function CompanyDetails() {
                   <TabsTrigger value="directors">Directors</TabsTrigger>
                   <TabsTrigger value="shareholders">Shareholders</TabsTrigger>
                   <TabsTrigger value="documents">Documents</TabsTrigger>
+                  <TabsTrigger value="chat">Chat</TabsTrigger>
                 </TabsList>
 
                 <TabsContent
@@ -731,6 +733,25 @@ export default function CompanyDetails() {
                       )}
                     </CardContent>
                   </Card>
+                </TabsContent>
+
+                <TabsContent
+                  value="chat"
+                  className="space-y-4"
+                >
+              <Card>
+    <CardHeader>
+      <CardTitle className="flex items-center">
+        <MessageSquare className="h-5 w-5 mr-2" />
+        KYC Assistant Chat
+      </CardTitle>
+      <CardDescription>Chat with our KYC assistant about this company</CardDescription>
+    </CardHeader>
+    <CardContent>
+      {/* Replace the dummy chat UI with the functional KycChat component */}
+      <KycChat clientId={"1"} />
+    </CardContent>
+  </Card>
                 </TabsContent>
               </Tabs>
             </motion.div>

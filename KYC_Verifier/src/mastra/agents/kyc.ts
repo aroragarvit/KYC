@@ -14,6 +14,7 @@ import {
 } from "../tools/kyc";
 // Configure the LLM
 const llm = google("gemini-1.5-pro-latest");
+import {Memory} from "@mastra/memory";
 
 // Create agent for KYC document analysis and information extraction
 export const kycAnalysisAgent = new Agent({
@@ -130,4 +131,5 @@ export const kycAgent = new Agent({
     getCompanyShareholdersTool: getCompanyShareholdersTool,
     getKycSummaryTool: getKycSummaryTool,
   },
+  memory: new Memory()
 });
