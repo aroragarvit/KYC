@@ -6,9 +6,17 @@ async function kycRoutes(fastify, options) {
   // Get all individuals // used in workflow only
   fastify.get("/kyc/individuals", async (request, reply) => {
     try {
-      const individuals = fastify.kycDb
-        .prepare("SELECT * FROM individuals")
-        .all();
+      const { client_id } = request.query;
+      
+      let query = "SELECT * FROM individuals";
+      let params = [];
+      
+      if (client_id) {
+        query += " WHERE client_id = ?";
+        params.push(client_id);
+      }
+      
+      const individuals = fastify.kycDb.prepare(query).all(...params);
 
       // Process to convert JSON strings to objects
       const processedIndividuals = individuals.map((individual) => {
@@ -42,10 +50,17 @@ async function kycRoutes(fastify, options) {
   fastify.get("/kyc/individuals/:id", async (request, reply) => {
     try {
       const { id } = request.params;
+      const { client_id } = request.query;
 
-      const individual = fastify.kycDb
-        .prepare("SELECT * FROM individuals WHERE id = ?")
-        .get(id);
+      let query = "SELECT * FROM individuals WHERE id = ?";
+      let params = [id];
+      
+      if (client_id) {
+        query += " AND client_id = ?";
+        params.push(client_id);
+      }
+
+      const individual = fastify.kycDb.prepare(query).get(...params);
 
       if (!individual) {
         return reply.code(404).send({ error: "Individual not found" });
@@ -85,14 +100,19 @@ async function kycRoutes(fastify, options) {
       if (!individual.full_name) {
         return reply.code(400).send({ error: "Full name is required" });
       }
+      
+      if (!individual.client_id) {
+        return reply.code(400).send({ error: "Client ID is required" });
+      }
 
-      // Check if individual already exists by exact name match
+      // Check if individual already exists by exact name match and client_id
       const existingIndividual = fastify.kycDb
-        .prepare("SELECT id FROM individuals WHERE full_name = ?")
-        .get(individual.full_name);
+        .prepare("SELECT id FROM individuals WHERE full_name = ? AND client_id = ?")
+        .get(individual.full_name, individual.client_id);
 
       // Convert objects to JSON strings
       const dataToStore = {
+        client_id: individual.client_id,
         full_name: individual.full_name,
         alternative_names: JSON.stringify(individual.alternative_names || []),
         id_numbers: JSON.stringify(individual.id_numbers || {}),
@@ -124,7 +144,7 @@ async function kycRoutes(fastify, options) {
             shares_owned = ?,
             price_per_share = ?,
             discrepancies = ?
-          WHERE id = ?
+          WHERE id = ? AND client_id = ?
         `);
 
         updateStmt.run(
@@ -140,25 +160,28 @@ async function kycRoutes(fastify, options) {
           dataToStore.price_per_share,
           dataToStore.discrepancies,
           existingIndividual.id,
+          dataToStore.client_id,
         );
 
         result = { id: existingIndividual.id };
         return {
           message: "Individual updated successfully",
           id: result.id,
+          client_id: dataToStore.client_id,
         };
       } else {
         // Insert new individual
         const insertStmt = fastify.kycDb.prepare(`
           INSERT INTO individuals (
-            full_name, alternative_names, id_numbers, id_types,
+            client_id, full_name, alternative_names, id_numbers, id_types,
             nationalities, addresses, emails, phones, roles,
             shares_owned, price_per_share, discrepancies
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           RETURNING id
         `);
 
         result = insertStmt.get(
+          dataToStore.client_id,
           dataToStore.full_name,
           dataToStore.alternative_names,
           dataToStore.id_numbers,
@@ -176,6 +199,7 @@ async function kycRoutes(fastify, options) {
         return {
           message: "Individual stored successfully",
           id: result.id,
+          client_id: dataToStore.client_id,
         };
       }
     } catch (err) {
@@ -190,7 +214,17 @@ async function kycRoutes(fastify, options) {
   // Get all companies
   fastify.get("/kyc/companies", async (request, reply) => {
     try {
-      const companies = fastify.kycDb.prepare("SELECT * FROM companies").all();
+      const { client_id } = request.query;
+      
+      let query = "SELECT * FROM companies";
+      let params = [];
+      
+      if (client_id) {
+        query += " WHERE client_id = ?";
+        params.push(client_id);
+      }
+      
+      const companies = fastify.kycDb.prepare(query).all(...params);
 
       // Process to convert JSON strings to objects
       const processedCompanies = companies.map((company) => {
@@ -222,10 +256,17 @@ async function kycRoutes(fastify, options) {
   fastify.get("/kyc/companies/:id", async (request, reply) => {
     try {
       const { id } = request.params;
+      const { client_id } = request.query;
 
-      const company = fastify.kycDb
-        .prepare("SELECT * FROM companies WHERE id = ?")
-        .get(id);
+      let query = "SELECT * FROM companies WHERE id = ?";
+      let params = [id];
+      
+      if (client_id) {
+        query += " AND client_id = ?";
+        params.push(client_id);
+      }
+
+      const company = fastify.kycDb.prepare(query).get(...params);
 
       if (!company) {
         return reply.code(404).send({ error: "Company not found" });
@@ -263,14 +304,19 @@ async function kycRoutes(fastify, options) {
       if (!company.company_name) {
         return reply.code(400).send({ error: "Company name is required" });
       }
+      
+      if (!company.client_id) {
+        return reply.code(400).send({ error: "Client ID is required" });
+      }
 
-      // Check if company already exists by exact name match
+      // Check if company already exists by exact name match and client_id
       const existingCompany = fastify.kycDb
-        .prepare("SELECT id FROM companies WHERE company_name = ?")
-        .get(company.company_name);
+        .prepare("SELECT id FROM companies WHERE company_name = ? AND client_id = ?")
+        .get(company.company_name, company.client_id);
 
       // Convert objects to JSON strings
       const dataToStore = {
+        client_id: company.client_id,
         company_name: company.company_name,
         registration_number: JSON.stringify(company.registration_number || {}),
         jurisdiction: JSON.stringify(company.jurisdiction || {}),
@@ -298,7 +344,7 @@ async function kycRoutes(fastify, options) {
             shares_issued = ?,
             price_per_share = ?,
             discrepancies = ?
-          WHERE id = ?
+          WHERE id = ? AND client_id = ?
         `);
 
         updateStmt.run(
@@ -312,25 +358,28 @@ async function kycRoutes(fastify, options) {
           dataToStore.price_per_share,
           dataToStore.discrepancies,
           existingCompany.id,
+          dataToStore.client_id,
         );
 
         result = { id: existingCompany.id };
         return {
           message: "Company updated successfully",
           id: result.id,
+          client_id: dataToStore.client_id,
         };
       } else {
         // Insert new company
         const insertStmt = fastify.kycDb.prepare(`
           INSERT INTO companies (
-            company_name, registration_number, jurisdiction, address,
+            client_id, company_name, registration_number, jurisdiction, address,
             directors, shareholders, company_activities, shares_issued,
             price_per_share, discrepancies
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           RETURNING id
         `);
 
         result = insertStmt.get(
+          dataToStore.client_id,
           dataToStore.company_name,
           dataToStore.registration_number,
           dataToStore.jurisdiction,
@@ -346,6 +395,7 @@ async function kycRoutes(fastify, options) {
         return {
           message: "Company stored successfully",
           id: result.id,
+          client_id: dataToStore.client_id,
         };
       }
     } catch (err) {
@@ -360,11 +410,17 @@ async function kycRoutes(fastify, options) {
   // Get document sources
   fastify.get("/kyc/documents", async (request, reply) => {
     try {
-      const documents = fastify.kycDb
-        .prepare(
-          "SELECT id, document_name, document_type, file_path, extraction_date FROM document_sources",
-        )
-        .all();
+      const { client_id } = request.query;
+      
+      let query = "SELECT id, document_name, document_type, file_path, extraction_date, client_id FROM document_sources";
+      let params = [];
+      
+      if (client_id) {
+        query += " WHERE client_id = ?";
+        params.push(client_id);
+      }
+      
+      const documents = fastify.kycDb.prepare(query).all(...params);
 
       return { documents };
     } catch (err) {
@@ -388,6 +444,15 @@ async function kycRoutes(fastify, options) {
       if (!document) {
         return reply.code(404).send({ error: "Document not found" });
       }
+      
+      // Get client name for file path construction
+      const client = fastify.kycDb
+        .prepare("SELECT name FROM clients WHERE id = ?")
+        .get(document.client_id);
+      
+      if (!client) {
+        return reply.code(404).send({ error: "Client not found" });
+      }
 
       // Check if content is already stored in the database
       if (document.content) {
@@ -396,6 +461,8 @@ async function kycRoutes(fastify, options) {
             id: document.id,
             name: document.document_name,
             type: document.document_type,
+            client_id: document.client_id,
+            client_name: client.name
           },
           content: document.content,
         };
@@ -404,6 +471,34 @@ async function kycRoutes(fastify, options) {
       // Content not stored, try to extract it
       try {
         let content = "";
+        
+        // The document should already be stored in the client's document folder
+        // Verify the file exists
+        if (!fs.existsSync(document.file_path)) {
+          // If not found at original path, try constructing the path
+          const clientFolder = `${client.name}_${document.client_id}`;
+          const fullFilePath = path.join(
+            path.dirname(path.dirname(document.file_path)), // Go up to db/folders
+            clientFolder,
+            "documents",
+            path.basename(document.file_path)
+          );
+          
+          if (!fs.existsSync(fullFilePath)) {
+            return reply.code(404).send({ 
+              error: "Document file not found", 
+              file_path: document.file_path,
+              attempted_path: fullFilePath
+            });
+          }
+          
+          // Update the file path in the database
+          fastify.kycDb
+            .prepare("UPDATE document_sources SET file_path = ? WHERE id = ?")
+            .run(fullFilePath, id);
+            
+          document.file_path = fullFilePath;
+        }
 
         if (document.file_path.toLowerCase().endsWith(".docx")) {
           // Extract content using mammoth
@@ -430,6 +525,8 @@ async function kycRoutes(fastify, options) {
             id: document.id,
             name: document.document_name,
             type: document.document_type,
+            client_id: document.client_id,
+            client_name: client.name
           },
           content,
         };
@@ -452,11 +549,28 @@ async function kycRoutes(fastify, options) {
   // Endpoint to trigger document processing
   fastify.post("/kyc/process-documents", async (request, reply) => {
     try {
+      const { client_id } = request.body;
+      
+      if (!client_id) {
+        return reply.code(400).send({ error: "Client ID is required" });
+      }
+      
+      // Verify client exists
+      const client = fastify.kycDb
+        .prepare("SELECT id, name FROM clients WHERE id = ?")
+        .get(client_id);
+        
+      if (!client) {
+        return reply.code(404).send({ error: "Client not found" });
+      }
+      
       // This would normally trigger an asynchronous workflow
       // For simplicity, we'll return a success message
       return {
         message: "Document processing initiated",
         status: "processing",
+        client_id: client_id,
+        client_name: client.name
       };
     } catch (err) {
       request.log.error(err);
@@ -470,31 +584,59 @@ async function kycRoutes(fastify, options) {
   // Generate summary report
   fastify.get("/kyc/summary", async (request, reply) => {
     try {
+      const { client_id } = request.query;
+      
+      let individualsQuery = "SELECT COUNT(*) as count FROM individuals";
+      let companiesQuery = "SELECT COUNT(*) as count FROM companies";
+      let documentsQuery = "SELECT COUNT(*) as count FROM document_sources";
+      let individualsDiscrepanciesQuery = "SELECT COUNT(*) as count FROM individuals WHERE discrepancies != '[]'";
+      let companiesDiscrepanciesQuery = "SELECT COUNT(*) as count FROM companies WHERE discrepancies != '[]'";
+      
+      let params = [];
+      
+      if (client_id) {
+        individualsQuery += " WHERE client_id = ?";
+        companiesQuery += " WHERE client_id = ?";
+        documentsQuery += " WHERE client_id = ?";
+        individualsDiscrepanciesQuery += " AND client_id = ?";
+        companiesDiscrepanciesQuery += " AND client_id = ?";
+        params.push(client_id);
+      }
+
       const individualsCount = fastify.kycDb
-        .prepare("SELECT COUNT(*) as count FROM individuals")
-        .get().count;
+        .prepare(individualsQuery)
+        .get(...params).count;
 
       const companiesCount = fastify.kycDb
-        .prepare("SELECT COUNT(*) as count FROM companies")
-        .get().count;
+        .prepare(companiesQuery)
+        .get(...params).count;
 
       const documentsCount = fastify.kycDb
-        .prepare("SELECT COUNT(*) as count FROM document_sources")
-        .get().count;
+        .prepare(documentsQuery)
+        .get(...params).count;
 
       // Get individuals with discrepancies
+      let discParams = client_id ? [client_id] : [];
       const individualsWithDiscrepancies = fastify.kycDb
-        .prepare(
-          "SELECT COUNT(*) as count FROM individuals WHERE discrepancies != '[]'",
-        )
-        .get().count;
+        .prepare(individualsDiscrepanciesQuery)
+        .get(...discParams).count;
 
       // Get companies with discrepancies
       const companiesWithDiscrepancies = fastify.kycDb
-        .prepare(
-          "SELECT COUNT(*) as count FROM companies WHERE discrepancies != '[]'",
-        )
-        .get().count;
+        .prepare(companiesDiscrepanciesQuery)
+        .get(...discParams).count;
+
+      // Get client name if client_id is provided
+      let clientName = null;
+      if (client_id) {
+        const client = fastify.kycDb
+          .prepare("SELECT name FROM clients WHERE id = ?")
+          .get(client_id);
+          
+        if (client) {
+          clientName = client.name;
+        }
+      }
 
       return {
         summary: {
@@ -503,6 +645,8 @@ async function kycRoutes(fastify, options) {
           total_documents: documentsCount,
           individuals_with_discrepancies: individualsWithDiscrepancies,
           companies_with_discrepancies: companiesWithDiscrepancies,
+          client_id: client_id ? parseInt(client_id) : null,
+          client_name: clientName
         },
       };
     } catch (err) {
@@ -542,6 +686,7 @@ async function kycRoutes(fastify, options) {
           id,
           document_name: document.document_name,
           document_type,
+          client_id: document.client_id
         },
       };
     } catch (err) {
@@ -557,10 +702,19 @@ async function kycRoutes(fastify, options) {
   fastify.get("/kyc/individuals/by-name/:name", async (request, reply) => {
     try {
       const { name } = request.params;
+      const { client_id } = request.query;
+
+      let query = "SELECT * FROM individuals WHERE full_name = ?";
+      let params = [name];
+      
+      if (client_id) {
+        query += " AND client_id = ?";
+        params.push(client_id);
+      }
 
       const individual = fastify.kycDb
-        .prepare("SELECT * FROM individuals WHERE full_name = ?")
-        .get(name);
+        .prepare(query)
+        .get(...params);
 
       if (!individual) {
         return reply.code(404).send({ error: "Individual not found" });
@@ -596,10 +750,19 @@ async function kycRoutes(fastify, options) {
   fastify.get("/kyc/companies/by-name/:name", async (request, reply) => {
     try {
       const { name } = request.params;
+      const { client_id } = request.query;
+
+      let query = "SELECT * FROM companies WHERE company_name = ?";
+      let params = [name];
+      
+      if (client_id) {
+        query += " AND client_id = ?";
+        params.push(client_id);
+      }
 
       const company = fastify.kycDb
-        .prepare("SELECT * FROM companies WHERE company_name = ?")
-        .get(name);
+        .prepare(query)
+        .get(...params);
 
       if (!company) {
         return reply.code(404).send({ error: "Company not found" });
@@ -634,14 +797,24 @@ async function kycRoutes(fastify, options) {
   // Get all directors (optionally filtered by company)
   fastify.get("/kyc/directors", async (request, reply) => {
     try {
-      const { company } = request.query;
+      const { company, client_id } = request.query;
 
       let query = "SELECT * FROM directors";
       let params = [];
+      let conditions = [];
 
       if (company) {
-        query += " WHERE company_name = ?";
+        conditions.push("company_name = ?");
         params.push(company);
+      }
+      
+      if (client_id) {
+        conditions.push("client_id = ?");
+        params.push(client_id);
+      }
+      
+      if (conditions.length > 0) {
+        query += " WHERE " + conditions.join(" AND ");
       }
 
       const directors = fastify.kycDb.prepare(query).all(...params);
@@ -660,12 +833,19 @@ async function kycRoutes(fastify, options) {
   fastify.get("/kyc/directors/:company/:director", async (request, reply) => {
     try {
       const { company, director } = request.params;
+      const { client_id } = request.query;
+
+      let query = "SELECT * FROM directors WHERE company_name = ? AND director_name = ?";
+      let params = [company, director];
+      
+      if (client_id) {
+        query += " AND client_id = ?";
+        params.push(client_id);
+      }
 
       const directorRecord = fastify.kycDb
-        .prepare(
-          "SELECT * FROM directors WHERE company_name = ? AND director_name = ?",
-        )
-        .get(company, director);
+        .prepare(query)
+        .get(...params);
 
       if (!directorRecord) {
         return reply.code(404).send({ error: "Director not found" });
@@ -685,19 +865,36 @@ async function kycRoutes(fastify, options) {
   fastify.get("/kyc/companies/:company/directors", async (request, reply) => {
     try {
       const { company } = request.params;
+      const { client_id } = request.query;
 
       // Check if company exists
+      let companyQuery = "SELECT 1 FROM companies WHERE company_name = ?";
+      let companyParams = [company];
+      
+      if (client_id) {
+        companyQuery += " AND client_id = ?";
+        companyParams.push(client_id);
+      }
+      
       const companyExists = fastify.kycDb
-        .prepare("SELECT 1 FROM companies WHERE company_name = ?")
-        .get(company);
+        .prepare(companyQuery)
+        .get(...companyParams);
 
       if (!companyExists) {
         return reply.code(404).send({ error: "Company not found" });
       }
 
+      let directorsQuery = "SELECT * FROM directors WHERE company_name = ?";
+      let directorsParams = [company];
+      
+      if (client_id) {
+        directorsQuery += " AND client_id = ?";
+        directorsParams.push(client_id);
+      }
+      
       const directors = fastify.kycDb
-        .prepare("SELECT * FROM directors WHERE company_name = ?")
-        .all(company);
+        .prepare(directorsQuery)
+        .all(...directorsParams);
 
       return { directors };
     } catch (err) {
@@ -719,13 +916,17 @@ async function kycRoutes(fastify, options) {
           .code(400)
           .send({ error: "Company name and director name are required" });
       }
+      
+      if (!director.client_id) {
+        return reply.code(400).send({ error: "Client ID is required" });
+      }
 
       // Check if this director entry already exists
       const existingDirector = fastify.kycDb
         .prepare(
-          "SELECT * FROM directors WHERE company_name = ? AND director_name = ?",
+          "SELECT * FROM directors WHERE company_name = ? AND director_name = ? AND client_id = ?"
         )
-        .get(director.company_name, director.director_name);
+        .get(director.company_name, director.director_name, director.client_id);
 
       if (existingDirector) {
         // Check if it's not verified - we don't update if it's already marked as not verified
@@ -739,7 +940,7 @@ async function kycRoutes(fastify, options) {
 
         // Log that we're updating an existing entry
         request.log.info(
-          `Updating existing director: ${director.director_name} for company ${director.company_name}`,
+          `Updating existing director: ${director.director_name} for company ${director.company_name}, client ${director.client_id}`
         );
 
         // Existing entry found and can be updated, perform an update instead
@@ -760,7 +961,7 @@ async function kycRoutes(fastify, options) {
             verification_status = ?,
             kyc_status = ?,
             updated_at = CURRENT_TIMESTAMP
-          WHERE company_name = ? AND director_name = ?
+          WHERE company_name = ? AND director_name = ? AND client_id = ?
         `);
 
         updateStmt.run(
@@ -782,23 +983,25 @@ async function kycRoutes(fastify, options) {
           director.kyc_status || existingDirector.kyc_status,
           director.company_name,
           director.director_name,
+          director.client_id
         );
 
         return {
           message: "Director updated successfully",
           company: director.company_name,
           director: director.director_name,
+          client_id: director.client_id
         };
       } else {
         // Log that we're creating a new entry
         request.log.info(
-          `Creating new director: ${director.director_name} for company ${director.company_name}`,
+          `Creating new director: ${director.director_name} for company ${director.company_name}, client ${director.client_id}`
         );
 
         // New director entry, perform insert
         const insertStmt = fastify.kycDb.prepare(`
           INSERT INTO directors (
-            company_name, director_name,
+            client_id, company_name, director_name,
             id_number, id_number_source,
             id_type, id_type_source,
             nationality, nationality_source,
@@ -806,10 +1009,11 @@ async function kycRoutes(fastify, options) {
             tel_number, tel_number_source,
             email_address, email_address_source,
             verification_status, kyc_status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         insertStmt.run(
+          director.client_id,
           director.company_name,
           director.director_name,
           director.id_number || null,
@@ -825,13 +1029,14 @@ async function kycRoutes(fastify, options) {
           director.email_address || null,
           director.email_address_source || null,
           director.verification_status || "pending",
-          director.kyc_status || null,
+          director.kyc_status || null
         );
 
         return {
           message: "Director added successfully",
           company: director.company_name,
           director: director.director_name,
+          client_id: director.client_id
         };
       }
     } catch (err) {
@@ -847,14 +1052,19 @@ async function kycRoutes(fastify, options) {
   fastify.put("/kyc/directors/:company/:director", async (request, reply) => {
     try {
       const { company, director } = request.params;
+      const { client_id } = request.query;
       const updates = request.body;
+      
+      if (!client_id) {
+        return reply.code(400).send({ error: "Client ID is required" });
+      }
 
       // Check if this director exists
       const existingDirector = fastify.kycDb
         .prepare(
-          "SELECT * FROM directors WHERE company_name = ? AND director_name = ?",
+          "SELECT * FROM directors WHERE company_name = ? AND director_name = ? AND client_id = ?"
         )
-        .get(company, director);
+        .get(company, director, client_id);
 
       if (!existingDirector) {
         return reply.code(404).send({ error: "Director not found" });
@@ -881,7 +1091,7 @@ async function kycRoutes(fastify, options) {
           verification_status = ?,
           kyc_status = ?,
           updated_at = CURRENT_TIMESTAMP
-        WHERE company_name = ? AND director_name = ?
+        WHERE company_name = ? AND director_name = ? AND client_id = ?
       `);
 
       updateStmt.run(
@@ -911,12 +1121,14 @@ async function kycRoutes(fastify, options) {
           : existingDirector.kyc_status,
         company,
         director,
+        client_id
       );
 
       return {
         message: "Director updated successfully",
         company,
         director,
+        client_id
       };
     } catch (err) {
       request.log.error(err);
@@ -932,14 +1144,24 @@ async function kycRoutes(fastify, options) {
   // Get all shareholders (optionally filtered by company)
   fastify.get("/kyc/shareholders", async (request, reply) => {
     try {
-      const { company } = request.query;
+      const { company, client_id } = request.query;
 
       let query = "SELECT * FROM shareholders";
       let params = [];
+      let conditions = [];
 
       if (company) {
-        query += " WHERE company_name = ?";
+        conditions.push("company_name = ?");
         params.push(company);
+      }
+      
+      if (client_id) {
+        conditions.push("client_id = ?");
+        params.push(client_id);
+      }
+      
+      if (conditions.length > 0) {
+        query += " WHERE " + conditions.join(" AND ");
       }
 
       const shareholders = fastify.kycDb.prepare(query).all(...params);
@@ -960,12 +1182,19 @@ async function kycRoutes(fastify, options) {
     async (request, reply) => {
       try {
         const { company, shareholder } = request.params;
+        const { client_id } = request.query;
+
+        let query = "SELECT * FROM shareholders WHERE company_name = ? AND shareholder_name = ?";
+        let params = [company, shareholder];
+        
+        if (client_id) {
+          query += " AND client_id = ?";
+          params.push(client_id);
+        }
 
         const shareholderRecord = fastify.kycDb
-          .prepare(
-            "SELECT * FROM shareholders WHERE company_name = ? AND shareholder_name = ?",
-          )
-          .get(company, shareholder);
+          .prepare(query)
+          .get(...params);
 
         if (!shareholderRecord) {
           return reply.code(404).send({ error: "Shareholder not found" });
@@ -988,19 +1217,36 @@ async function kycRoutes(fastify, options) {
     async (request, reply) => {
       try {
         const { company } = request.params;
+        const { client_id } = request.query;
 
         // Check if company exists
+        let companyQuery = "SELECT 1 FROM companies WHERE company_name = ?";
+        let companyParams = [company];
+        
+        if (client_id) {
+          companyQuery += " AND client_id = ?";
+          companyParams.push(client_id);
+        }
+        
         const companyExists = fastify.kycDb
-          .prepare("SELECT 1 FROM companies WHERE company_name = ?")
-          .get(company);
+          .prepare(companyQuery)
+          .get(...companyParams);
 
         if (!companyExists) {
           return reply.code(404).send({ error: "Company not found" });
         }
 
+        let shareholdersQuery = "SELECT * FROM shareholders WHERE company_name = ?";
+        let shareholdersParams = [company];
+        
+        if (client_id) {
+          shareholdersQuery += " AND client_id = ?";
+          shareholdersParams.push(client_id);
+        }
+        
         const shareholders = fastify.kycDb
-          .prepare("SELECT * FROM shareholders WHERE company_name = ?")
-          .all(company);
+          .prepare(shareholdersQuery)
+          .all(...shareholdersParams);
 
         return { shareholders };
       } catch (err) {
@@ -1016,20 +1262,37 @@ async function kycRoutes(fastify, options) {
   fastify.get("/kyc/companies/id/:id/shareholders", async (request, reply) => {
     try {
       const { id } = request.params;
+      const { client_id } = request.query;
 
       // Check if company exists by ID
+      let companyQuery = "SELECT company_name FROM companies WHERE id = ?";
+      let companyParams = [id];
+      
+      if (client_id) {
+        companyQuery += " AND client_id = ?";
+        companyParams.push(client_id);
+      }
+      
       const company = fastify.kycDb
-        .prepare("SELECT company_name FROM companies WHERE id = ?")
-        .get(id);
+        .prepare(companyQuery)
+        .get(...companyParams);
 
       if (!company) {
         return reply.code(404).send({ error: "Company not found" });
       }
 
       // Get shareholders by company ID through company name
+      let shareholdersQuery = "SELECT * FROM shareholders WHERE company_name = ?";
+      let shareholdersParams = [company.company_name];
+      
+      if (client_id) {
+        shareholdersQuery += " AND client_id = ?";
+        shareholdersParams.push(client_id);
+      }
+      
       const shareholders = fastify.kycDb
-        .prepare("SELECT * FROM shareholders WHERE company_name = ?")
-        .all(company.company_name);
+        .prepare(shareholdersQuery)
+        .all(...shareholdersParams);
 
       return { shareholders };
     } catch (err) {
@@ -1044,20 +1307,37 @@ async function kycRoutes(fastify, options) {
   fastify.get("/kyc/companies/id/:id/directors", async (request, reply) => {
     try {
       const { id } = request.params;
+      const { client_id } = request.query;
 
       // Check if company exists by ID
+      let companyQuery = "SELECT company_name FROM companies WHERE id = ?";
+      let companyParams = [id];
+      
+      if (client_id) {
+        companyQuery += " AND client_id = ?";
+        companyParams.push(client_id);
+      }
+      
       const company = fastify.kycDb
-        .prepare("SELECT company_name FROM companies WHERE id = ?")
-        .get(id);
+        .prepare(companyQuery)
+        .get(...companyParams);
 
       if (!company) {
         return reply.code(404).send({ error: "Company not found" });
       }
 
       // Get directors by company ID through company name
+      let directorsQuery = "SELECT * FROM directors WHERE company_name = ?";
+      let directorsParams = [company.company_name];
+      
+      if (client_id) {
+        directorsQuery += " AND client_id = ?";
+        directorsParams.push(client_id);
+      }
+      
       const directors = fastify.kycDb
-        .prepare("SELECT * FROM directors WHERE company_name = ?")
-        .all(company.company_name);
+        .prepare(directorsQuery)
+        .all(...directorsParams);
 
       return { directors };
     } catch (err) {
@@ -1068,6 +1348,7 @@ async function kycRoutes(fastify, options) {
       });
     }
   });
+  
   // Add a shareholder
   fastify.post("/kyc/shareholders", async (request, reply) => {
     try {
@@ -1078,13 +1359,17 @@ async function kycRoutes(fastify, options) {
           .code(400)
           .send({ error: "Company name and shareholder name are required" });
       }
+      
+      if (!shareholder.client_id) {
+        return reply.code(400).send({ error: "Client ID is required" });
+      }
 
       // Check if this shareholder entry already exists
       const existingShareholder = fastify.kycDb
         .prepare(
-          "SELECT * FROM shareholders WHERE company_name = ? AND shareholder_name = ?",
+          "SELECT * FROM shareholders WHERE company_name = ? AND shareholder_name = ? AND client_id = ?"
         )
-        .get(shareholder.company_name, shareholder.shareholder_name);
+        .get(shareholder.company_name, shareholder.shareholder_name, shareholder.client_id);
 
       if (existingShareholder) {
         // Check if it's not verified - we don't update if it's already marked as not verified
@@ -1098,7 +1383,7 @@ async function kycRoutes(fastify, options) {
 
         // Log that we're updating an existing entry
         request.log.info(
-          `Updating existing shareholder: ${shareholder.shareholder_name} for company ${shareholder.company_name}`,
+          `Updating existing shareholder: ${shareholder.shareholder_name} for company ${shareholder.company_name}, client ${shareholder.client_id}`
         );
 
         // Existing entry found and can be updated, perform an update instead
@@ -1124,7 +1409,7 @@ async function kycRoutes(fastify, options) {
             kyc_status = ?,
             is_company = ?,
             updated_at = CURRENT_TIMESTAMP
-          WHERE company_name = ? AND shareholder_name = ?
+          WHERE company_name = ? AND shareholder_name = ? AND client_id = ?
         `);
 
         updateStmt.run(
@@ -1157,23 +1442,25 @@ async function kycRoutes(fastify, options) {
             : existingShareholder.is_company,
           shareholder.company_name,
           shareholder.shareholder_name,
+          shareholder.client_id
         );
 
         return {
           message: "Shareholder updated successfully",
           company: shareholder.company_name,
           shareholder: shareholder.shareholder_name,
+          client_id: shareholder.client_id
         };
       } else {
         // Log that we're creating a new entry
         request.log.info(
-          `Creating new shareholder: ${shareholder.shareholder_name} for company ${shareholder.company_name}`,
+          `Creating new shareholder: ${shareholder.shareholder_name} for company ${shareholder.company_name}, client ${shareholder.client_id}`
         );
 
         // New shareholder entry, perform insert
         const insertStmt = fastify.kycDb.prepare(`
           INSERT INTO shareholders (
-            company_name, shareholder_name,
+            client_id, company_name, shareholder_name,
             shares_owned, shares_owned_source,
             price_per_share, price_per_share_source,
             id_number, id_number_source,
@@ -1187,6 +1474,7 @@ async function kycRoutes(fastify, options) {
         `);
 
         insertStmt.run(
+          shareholder.client_id,
           shareholder.company_name,
           shareholder.shareholder_name,
           shareholder.shares_owned || null,
@@ -1207,13 +1495,14 @@ async function kycRoutes(fastify, options) {
           shareholder.email_address_source || null,
           shareholder.verification_status || "pending",
           shareholder.kyc_status || null,
-          shareholder.is_company || 0,
+          shareholder.is_company || 0
         );
 
         return {
           message: "Shareholder added successfully",
           company: shareholder.company_name,
           shareholder: shareholder.shareholder_name,
+          client_id: shareholder.client_id
         };
       }
     } catch (err) {
@@ -1231,14 +1520,19 @@ async function kycRoutes(fastify, options) {
     async (request, reply) => {
       try {
         const { company, shareholder } = request.params;
+        const { client_id } = request.query;
         const updates = request.body;
+        
+        if (!client_id) {
+          return reply.code(400).send({ error: "Client ID is required" });
+        }
 
         // Check if this shareholder exists
         const existingShareholder = fastify.kycDb
           .prepare(
-            "SELECT * FROM shareholders WHERE company_name = ? AND shareholder_name = ?",
+            "SELECT * FROM shareholders WHERE company_name = ? AND shareholder_name = ? AND client_id = ?"
           )
-          .get(company, shareholder);
+          .get(company, shareholder, client_id);
 
         if (!existingShareholder) {
           return reply.code(404).send({ error: "Shareholder not found" });
@@ -1268,7 +1562,7 @@ async function kycRoutes(fastify, options) {
           kyc_status = ?,
           is_company = ?,
           updated_at = CURRENT_TIMESTAMP
-        WHERE company_name = ? AND shareholder_name = ?
+        WHERE company_name = ? AND shareholder_name = ? AND client_id = ?
       `);
 
         updateStmt.run(
@@ -1307,12 +1601,14 @@ async function kycRoutes(fastify, options) {
             : existingShareholder.is_company,
           company,
           shareholder,
+          client_id
         );
 
         return {
           message: "Shareholder updated successfully",
           company,
           shareholder,
+          client_id
         };
       } catch (err) {
         request.log.error(err);
@@ -1323,6 +1619,309 @@ async function kycRoutes(fastify, options) {
       }
     },
   );
+
+  // ========== CLIENT API ROUTES ==========
+  
+  // Get all clients
+  fastify.get("/kyc/clients", async (request, reply) => {
+    try {
+      const clients = fastify.kycDb
+        .prepare("SELECT * FROM clients")
+        .all();
+
+      return { clients };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({
+        error: "Internal Server Error",
+        message: err.message,
+      });
+    }
+  });
+
+  // Get client by ID
+  fastify.get("/kyc/clients/:id", async (request, reply) => {
+    try {
+      const { id } = request.params;
+
+      const client = fastify.kycDb
+        .prepare("SELECT * FROM clients WHERE id = ?")
+        .get(id);
+
+      if (!client) {
+        return reply.code(404).send({ error: "Client not found" });
+      }
+
+      return { client };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({
+        error: "Internal Server Error",
+        message: err.message,
+      });
+    }
+  });
+
+  // Create a new client
+  fastify.post("/kyc/clients", async (request, reply) => {
+    try {
+      const { name } = request.body;
+
+      if (!name) {
+        return reply.code(400).send({ error: "Client name is required" });
+      }
+
+      // Check if client already exists
+      const existingClient = fastify.kycDb
+        .prepare("SELECT id FROM clients WHERE name = ?")
+        .get(name);
+
+      if (existingClient) {
+        return reply.code(409).send({ 
+          error: "Client already exists",
+          client_id: existingClient.id
+        });
+      }
+
+      // Insert new client
+      const result = fastify.kycDb
+        .prepare("INSERT INTO clients (name) VALUES (?) RETURNING id")
+        .get(name);
+        
+      // Create client folder structure if it doesn't exist
+      const clientFolder = `${name}_${result.id}`;
+      const folderPath = path.join("db/folders", clientFolder, "documents");
+      
+      try {
+        await fs.mkdir(folderPath, { recursive: true });
+      } catch (mkdirError) {
+        request.log.error(`Error creating directory: ${mkdirError.message}`);
+        // Continue even if folder creation fails
+      }
+
+      return {
+        message: "Client created successfully",
+        client_id: result.id,
+        client_name: name
+      };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({
+        error: "Internal Server Error",
+        message: err.message,
+      });
+    }
+  });
+
+  // Update client
+  fastify.put("/kyc/clients/:id", async (request, reply) => {
+    try {
+      const { id } = request.params;
+      const { name } = request.body;
+
+      if (!name) {
+        return reply.code(400).send({ error: "Client name is required" });
+      }
+
+      // Check if client exists
+      const existingClient = fastify.kycDb
+        .prepare("SELECT name FROM clients WHERE id = ?")
+        .get(id);
+
+      if (!existingClient) {
+        return reply.code(404).send({ error: "Client not found" });
+      }
+
+      // Check if name is already taken by another client
+      const nameExists = fastify.kycDb
+        .prepare("SELECT id FROM clients WHERE name = ? AND id != ?")
+        .get(name, id);
+
+      if (nameExists) {
+        return reply.code(409).send({ error: "Client name already in use" });
+      }
+      
+      // Rename client folder if it exists
+      const oldFolderName = `${existingClient.name}_${id}`;
+      const newFolderName = `${name}_${id}`;
+      
+      const oldFolderPath = path.join("db/folders", oldFolderName);
+      const newFolderPath = path.join("db/folders", newFolderName);
+      
+      try {
+        if (fs.existsSync(oldFolderPath)) {
+          fs.renameSync(oldFolderPath, newFolderPath);
+          
+          // Update file paths in database
+          fastify.kycDb.prepare(`
+            UPDATE document_sources 
+            SET file_path = REPLACE(file_path, ?, ?) 
+            WHERE client_id = ?
+          `).run(oldFolderPath, newFolderPath, id);
+        }
+      } catch (fsErr) {
+        request.log.error(`Error renaming client folder: ${fsErr.message}`);
+        // Continue even if folder renaming fails
+      }
+
+      // Update client
+      fastify.kycDb
+        .prepare("UPDATE clients SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        .run(name, id);
+
+      return {
+        message: "Client updated successfully",
+        client_id: parseInt(id),
+        client_name: name
+      };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({
+        error: "Internal Server Error",
+        message: err.message,
+      });
+    }
+  });
+
+  // Get client documents folder structure
+  fastify.get("/kyc/clients/:id/documents/structure", async (request, reply) => {
+    try {
+      const { id } = request.params;
+      
+      // Check if client exists
+      const client = fastify.kycDb
+        .prepare("SELECT name FROM clients WHERE id = ?")
+        .get(id);
+        
+      if (!client) {
+        return reply.code(404).send({ error: "Client not found" });
+      }
+      
+      // Construct client folder path
+      const clientFolder = `${client.name}_${id}`;
+      const folderPath = path.join("db/folders", clientFolder, "documents");
+      
+      try {
+        // Try to get directory structure
+        const files = await fs.readdir(folderPath);
+        
+        return {
+          client_id: parseInt(id),
+          client_name: client.name,
+          folder_path: folderPath,
+          files: files
+        };
+      } catch (dirErr) {
+        if (dirErr.code === 'ENOENT') {
+          // Directory doesn't exist yet
+          return {
+            client_id: parseInt(id),
+            client_name: client.name,
+            folder_path: folderPath,
+            files: [],
+            message: "Document folder not yet created for this client"
+          };
+        }
+        throw dirErr;
+      }
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({
+        error: "Internal Server Error",
+        message: err.message,
+      });
+    }
+  });
+
+  // Upload document for a client
+  fastify.post("/kyc/clients/:id/documents", async (request, reply) => {
+    try {
+      const { id } = request.params;
+      
+      // Check if client exists
+      const client = fastify.kycDb
+        .prepare("SELECT name FROM clients WHERE id = ?")
+        .get(id);
+        
+      if (!client) {
+        return reply.code(404).send({ error: "Client not found" });
+      }
+      
+      // Check if data is uploaded
+      if (!request.isMultipart()) {
+        return reply.code(400).send({ error: "File upload must be multipart/form-data" });
+      }
+      
+      const data = await request.file();
+      if (!data) {
+        return reply.code(400).send({ error: "No file uploaded" });
+      }
+      
+      // Ensure the document type is provided
+      const documentType = data.fields.document_type?.value;
+      if (!documentType) {
+        return reply.code(400).send({ error: "Document type is required" });
+      }
+      
+      // Create client folder structure if it doesn't exist
+      const clientFolder = `${client.name}_${id}`;
+      const folderPath = path.join("db/folders", clientFolder, "documents");
+      
+      try {
+        await fs.mkdir(folderPath, { recursive: true });
+      } catch (mkdirError) {
+        request.log.error(`Error creating directory: ${mkdirError.message}`);
+        return reply.code(500).send({
+          error: "Failed to create document directory",
+          details: mkdirError.message,
+        });
+      }
+      
+      // Save the file
+      const fileName = `${Date.now()}_${data.filename}`;
+      const filePath = path.join(folderPath, fileName);
+      
+      try {
+        await fs.writeFile(filePath, await data.toBuffer());
+      } catch (fileError) {
+        request.log.error(`Error saving file: ${fileError.message}`);
+        return reply.code(500).send({
+          error: "Failed to save file",
+          details: fileError.message,
+        });
+      }
+      
+      // Store document metadata in database
+      const insertStmt = fastify.kycDb.prepare(`
+        INSERT INTO document_sources (
+          client_id, document_name, document_type, file_path, extraction_date
+        ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        RETURNING id
+      `);
+      
+      const result = insertStmt.get(
+        id,
+        data.filename,
+        documentType,
+        filePath
+      );
+      
+      return {
+        message: "Document uploaded successfully",
+        document_id: result.id,
+        client_id: parseInt(id),
+        document_name: data.filename,
+        document_type: documentType,
+        file_path: filePath
+      };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({
+        error: "Internal Server Error",
+        message: err.message,
+      });
+    }
+  });
 }
 
 module.exports = kycRoutes;
