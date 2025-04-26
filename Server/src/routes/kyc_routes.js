@@ -1392,8 +1392,7 @@ async function kycRoutes(fastify, options) {
             email_address_source = ?,
             verification_status = ?,
             kyc_status = ?,
-            is_company = ?,
-            updated_at = CURRENT_TIMESTAMP
+            is_company = ?
           WHERE company_name = ? AND shareholder_name = ? AND client_id = ?
         `);
 

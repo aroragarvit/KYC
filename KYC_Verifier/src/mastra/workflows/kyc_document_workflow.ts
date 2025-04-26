@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { documentClassificationAgent, kycAnalysisAgent, kycStatusAnalysisAgent } from '../agents/kyc';
 import { fileURLToPath } from 'url';
+import { jsonrepair } from 'jsonrepair';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -605,23 +606,17 @@ const extractInformation = new Step({
       // Remove any markdown code block markers
       jsonText = jsonText.replace(/```(json)?|```/g, '').trim();
       
+      // Log first 100 chars of sanitized JSON for debugging
+      console.log(`Sanitized JSON (first 100 chars): ${jsonText.substring(0, 100)}...`);
+      
+      // Parse the JSON
+      let extractedData;
       try {
-        // Sanitize JSON to fix common formatting issues
-        // 1. Fix unquoted property names (convert from JavaScript object syntax to valid JSON)
-        jsonText = jsonText.replace(/([{,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
-        
-        // 2. Fix trailing commas in arrays and objects
-        jsonText = jsonText.replace(/,\s*([\]}])/g, '$1');
-        
-        // Log first 100 chars of sanitized JSON for debugging
-        console.log(`Sanitized JSON (first 100 chars): ${jsonText.substring(0, 100)}...`);
-        
-        // Parse the JSON
-        let extractedData;
         try {
+          // First attempt regular parsing
           extractedData = JSON.parse(jsonText);
         } catch (parseError) {
-          console.error('Error parsing JSON after sanitization:', parseError);
+          console.error('Error parsing JSON, attempting repair:', parseError);
           console.error('JSON position details:', {
             errorPosition: (parseError as SyntaxError).message.match(/position (\d+)/)?.[1],
             textAroundError: jsonText.substring(
@@ -629,7 +624,15 @@ const extractInformation = new Step({
               Math.min(jsonText.length, parseInt((parseError as SyntaxError).message.match(/position (\d+)/)?.[1] || '0') + 30)
             )
           });
-          throw parseError;
+          
+          // Try to repair the JSON
+          console.log('Attempting to repair JSON...');
+          const repairedJson = jsonrepair(jsonText);
+          console.log('JSON repaired, attempting to parse again...');
+          
+          // Try parsing the repaired JSON
+          extractedData = JSON.parse(repairedJson);
+          console.log('Successfully parsed repaired JSON');
         }
         
         console.log(`Successfully extracted information about ${extractedData.individuals?.length || 0} individuals and ${extractedData.companies?.length || 0} companies`);
@@ -643,7 +646,7 @@ const extractInformation = new Step({
           client_id 
         };
       } catch (parseError) {
-        console.error('Error parsing JSON:', parseError);
+        console.error('Error parsing JSON even after repair:', parseError);
         throw new Error(`Failed to parse extracted information`);
       }
     } catch (error: unknown) {
@@ -984,33 +987,44 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
         director.discrepancies.forEach((d: Discrepancy) => {
           kycStatus.push(`Discrepancy in ${d.field}: ${d.values.join(" vs ")} (Sources: ${d.sources.join(", ")})`);
         });
-      } else {
-        // Check for missing requirements
-        const missingRequirements: string[] = [];
-        
-        if (!hasIdDocument) {
-          missingRequirements.push("Missing identification document");
-        }
-        if (!hasAddressProof) {
-          missingRequirements.push("Missing proof of address");
-        }
-        if (!phoneInfo.value) {
-          missingRequirements.push("Missing telephone number");
-        } else if (nationalityInfo.value?.toLowerCase().includes("singapore") && !phoneInfo.value.includes("+65")) {
-          missingRequirements.push("Local (+65) phone number required for Singapore director");
-        }
-        if (!emailInfo.value) {
-          missingRequirements.push("Missing email address");
-        }
-        
-        if (missingRequirements.length > 0) {
-          verificationStatus = "pending";
-          kycStatus = missingRequirements;
-        }
+      }
+      
+      // Check for missing requirements, regardless of discrepancies
+      const missingRequirements: string[] = [];
+      
+      if (!hasIdDocument) {
+        missingRequirements.push("Missing identification document");
+      }
+      if (!hasAddressProof) {
+        missingRequirements.push("Missing proof of address");
+      }
+      if (!phoneInfo.value) {
+        missingRequirements.push("Missing telephone number");
+      } else if (nationalityInfo.value?.toLowerCase().includes("singapore") && !phoneInfo.value.includes("+65")) {
+        missingRequirements.push("Local (+65) phone number required for Singapore director");
+      }
+      if (!emailInfo.value) {
+        missingRequirements.push("Missing email address");
+      }
+      
+      if (missingRequirements.length > 0) {
+        verificationStatus = "pending";
+        // Add missing requirements to kycStatus
+        kycStatus = [...kycStatus, ...missingRequirements];
       }
       
       // Get detailed KYC status explanation
-      const detailedKycStatus = await getDetailedKycStatus("Director", director.discrepancies, kycStatus);
+      const detailedKycStatus = await getDetailedKycStatus("Director", director.discrepancies, missingRequirements);
+      
+      // Check if the KYC status indicates a false positive
+      const isFalsePositive = detailedKycStatus.startsWith("FALSE_POSITIVE:");
+      const cleanedKycStatus = isFalsePositive ? detailedKycStatus.substring("FALSE_POSITIVE:".length) : detailedKycStatus;
+      
+      // Set verification status based on whether discrepancies are false positives
+      if (verificationStatus === "not_verified" && isFalsePositive) {
+        // Change to pending for false positives
+        verificationStatus = "pending";
+      }
       
       // Update company verification status if needed
       if (verificationStatus !== "verified") {
@@ -1018,7 +1032,7 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
       }
       
       // Format the KYC status for display
-      const kycStatusDisplay = detailedKycStatus || (kycStatus.length > 0 ? kycStatus.join("; ") : "Complete");
+      const kycStatusDisplay = cleanedKycStatus || (kycStatus.length > 0 ? kycStatus.join("; ") : "Complete");
       
       // Log director information with sources
       console.log(
@@ -1163,17 +1177,34 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
         if (individual.discrepancies?.length) {
           verificationStatus = "not_verified";
           individual.discrepancies!.forEach((d: Discrepancy) => kycStatus.push(`Discrepancy in ${d.field}: ${d.values.join(" vs ")} (Sources: ${d.sources.join(", ")})`));
-        } else {
-          const missing: string[] = [];
-          if (isLocal && !hasNRIC) missing.push("Missing NRIC");
-          if (!isLocal && !hasPassport) missing.push("Missing passport");
-          if (!hasAddrProof) missing.push("Missing proof of address");
-          if (!emailInfo.value) missing.push("Missing email");
-          if (missing.length) { verificationStatus = "pending"; kycStatus = missing; }
+        }
+        
+        // Always check for missing requirements, regardless of discrepancies
+        const missing: string[] = [];
+        if (isLocal && !hasNRIC) missing.push("Missing NRIC");
+        if (!isLocal && !hasPassport) missing.push("Missing passport");
+        if (!hasAddrProof) missing.push("Missing proof of address");
+        if (!emailInfo.value) missing.push("Missing email");
+        
+        if (missing.length) { 
+          verificationStatus = "pending"; 
+          // Add missing requirements to kycStatus
+          kycStatus = [...kycStatus, ...missing]; 
         }
         
         // Get detailed KYC status explanation
         const detailedKycStatus = await getDetailedKycStatus("Individual Shareholder", individual.discrepancies, kycStatus);
+        
+        // Check if the KYC status indicates a false positive
+        const isFalsePositive = detailedKycStatus.startsWith("FALSE_POSITIVE:");
+        const cleanedKycStatus = isFalsePositive ? detailedKycStatus.substring("FALSE_POSITIVE:".length) : detailedKycStatus;
+        
+        // Set verification status based on whether discrepancies are false positives
+        if (verificationStatus === "not_verified" && isFalsePositive) {
+          // Change to pending for false positives
+          verificationStatus = "pending";
+        }
+        
         if (verificationStatus !== "verified") overallStatus = "pending";
         
         // Store individual shareholder in the shareholders table with field sources
@@ -1199,7 +1230,7 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
             email_address: emailInfo.value,
             email_address_source: emailInfo.sourceJson,
             verification_status: verificationStatus,
-            kyc_status: detailedKycStatus || (kycStatus.length ? kycStatus.join("; ") : "Complete"),
+            kyc_status: cleanedKycStatus || (kycStatus.length ? kycStatus.join("; ") : "Complete"),
             is_company: 0  // Individual
           });
           console.log(`Stored/updated individual shareholder information for ${parsedName}`);
@@ -1208,7 +1239,7 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
         }
         
         console.log(
-          `| ${parsedName} | ${sharesInfo.value || "Missing"} (${sharesInfo.source}) | ${priceInfo.value || "Missing"} (${priceInfo.source}) | ${idInfo.value || "Missing"} (${idInfo.source}) | ${idTypeInfo.value || "Missing"} (${idTypeInfo.source}) | ${nationalityInfo.value || "Missing"} (${nationalityInfo.source}) | ${addressInfo.value || "Missing"} (${addressInfo.source}) | ${phoneInfo.value || "Missing"} (${phoneInfo.source}) | ${emailInfo.value || "Missing"} (${emailInfo.source}) | ${verificationStatus} | ${(detailedKycStatus || (kycStatus.length ? kycStatus.join("; ") : "Complete")).substring(0, 100)}${(detailedKycStatus || "").length > 100 ? '...' : ''} |`
+          `| ${parsedName} | ${sharesInfo.value || "Missing"} (${sharesInfo.source}) | ${priceInfo.value || "Missing"} (${priceInfo.source}) | ${idInfo.value || "Missing"} (${idInfo.source}) | ${idTypeInfo.value || "Missing"} (${idTypeInfo.source}) | ${nationalityInfo.value || "Missing"} (${nationalityInfo.source}) | ${addressInfo.value || "Missing"} (${addressInfo.source}) | ${phoneInfo.value || "Missing"} (${phoneInfo.source}) | ${emailInfo.value || "Missing"} (${emailInfo.source}) | ${verificationStatus} | ${(cleanedKycStatus || (kycStatus.length ? kycStatus.join("; ") : "Complete")).substring(0, 100)}${(cleanedKycStatus || "").length > 100 ? '...' : ''} |`
         );
       } else {
         // Process corporate shareholder
@@ -1268,21 +1299,38 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
         if (compEnt.discrepancies?.length) {
           verificationStatus = "not_verified";
           compEnt.discrepancies!.forEach((d: Discrepancy) => kycStatus.push(`Discrepancy in ${d.field}: ${d.values.join(" vs ")} (Sources: ${d.sources.join(", ")})`));
-        } else {
-          const missing: string[] = [];
-          if (isLocalCorp && !hasBizfile) missing.push("Missing ACRA Bizfile");
-          if (!isLocalCorp) {
-            if (!hasIncorp) missing.push("Missing incorporation certificate");
-            if (!hasDirReg) missing.push("Missing register of directors");
-          }
-          if (!hasAddrProofCorp) missing.push("Missing proof of address");
-          if (sharesInfo.value && parseFloat(sharesInfo.value) >= 25 && !hasMemReg) missing.push("Missing register of members");
-          if (!emailInfo.value) missing.push("Missing email & signatory");
-          if (missing.length) { verificationStatus = "pending"; kycStatus = missing; }
+        }
+        
+        // Always check for missing requirements, regardless of discrepancies
+        const missing: string[] = [];
+        if (isLocalCorp && !hasBizfile) missing.push("Missing ACRA Bizfile");
+        if (!isLocalCorp) {
+          if (!hasIncorp) missing.push("Missing incorporation certificate");
+          if (!hasDirReg) missing.push("Missing register of directors");
+        }
+        if (!hasAddrProofCorp) missing.push("Missing proof of address");
+        if (sharesInfo.value && parseFloat(sharesInfo.value) >= 25 && !hasMemReg) missing.push("Missing register of members");
+        if (!emailInfo.value) missing.push("Missing email & signatory");
+        
+        if (missing.length) { 
+          verificationStatus = "pending"; 
+          // Add missing requirements to kycStatus
+          kycStatus = [...kycStatus, ...missing]; 
         }
         
         // Get detailed KYC status explanation
         const detailedKycStatus = await getDetailedKycStatus("Corporate Shareholder", compEnt.discrepancies, kycStatus);
+        
+        // Check if the KYC status indicates a false positive
+        const isFalsePositive = detailedKycStatus.startsWith("FALSE_POSITIVE:");
+        const cleanedKycStatus = isFalsePositive ? detailedKycStatus.substring("FALSE_POSITIVE:".length) : detailedKycStatus;
+        
+        // Set verification status based on whether discrepancies are false positives
+        if (verificationStatus === "not_verified" && isFalsePositive) {
+          // Change to pending for false positives
+          verificationStatus = "pending";
+        }
+        
         if (verificationStatus !== "verified") overallStatus = "pending";
         
         // Store corporate shareholder in the shareholders table with field sources
@@ -1308,7 +1356,7 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
             email_address: emailInfo.value,
             email_address_source: emailInfo.sourceJson,
             verification_status: verificationStatus,
-            kyc_status: detailedKycStatus || (kycStatus.length ? kycStatus.join("; ") : "Complete"),
+            kyc_status: cleanedKycStatus || (kycStatus.length ? kycStatus.join("; ") : "Complete"),
             is_company: 1  // Company
           });
           console.log(`Stored/updated corporate shareholder information for ${parsedName}`);
@@ -1317,7 +1365,7 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
         }
         
         console.log(
-          `| ${parsedName} | ${sharesInfo.value || "Missing"} (${sharesInfo.source}) | ${priceInfo.value || "Missing"} (${priceInfo.source}) | ${idInfo.value || "Missing"} (${idInfo.source}) | ${idTypeInfo.value || "Missing"} (${idTypeInfo.source}) | ${nationalityInfo.value || "Missing"} (${nationalityInfo.source}) | ${addressInfo.value || "Missing"} (${addressInfo.source}) | ${phoneInfo.value || "Missing"} (${phoneInfo.source}) | ${emailInfo.value || "Missing"} (${emailInfo.source}) | ${verificationStatus} | ${(detailedKycStatus || (kycStatus.length ? kycStatus.join("; ") : "Complete")).substring(0, 100)}${(detailedKycStatus || "").length > 100 ? '...' : ''} |`
+          `| ${parsedName} | ${sharesInfo.value || "Missing"} (${sharesInfo.source}) | ${priceInfo.value || "Missing"} (${priceInfo.source}) | ${idInfo.value || "Missing"} (${idInfo.source}) | ${idTypeInfo.value || "Missing"} (${idTypeInfo.source}) | ${nationalityInfo.value || "Missing"} (${nationalityInfo.source}) | ${addressInfo.value || "Missing"} (${addressInfo.source}) | ${phoneInfo.value || "Missing"} (${phoneInfo.source}) | ${emailInfo.value || "Missing"} (${emailInfo.source}) | ${verificationStatus} | ${(cleanedKycStatus || (kycStatus.length ? kycStatus.join("; ") : "Complete")).substring(0, 100)}${(cleanedKycStatus || "").length > 100 ? '...' : ''} |`
         );
       }
       
@@ -1440,48 +1488,84 @@ async function getDetailedKycStatus(
 ): Promise<string> {
   try {
     // Format discrepancies for the agent
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    await new Promise(resolve => setTimeout(resolve, 60000));
     const formattedDiscrepancies = discrepancies?.map(d => 
       `${d.field}: ${d.values.join(" vs ")} (Sources: ${d.sources.join(", ")})`
     ).join("\n") || "None";
     
-    // Create a simple prompt for the agent
+    // Create a comprehensive prompt for the agent
     const prompt = `
-      Please analyze the following KYC verification data and provide a detailed explanation:
+      # KYC Status Analysis for ${entityType}
       
-      Entity Type: ${entityType}
+      You are a KYC compliance expert. Please analyze the following verification data and provide a detailed explanation of compliance status. 
+      Your task is to distinguish between genuine compliance issues and false positives like formatting differences.
       
-      Discrepancies:
+      ## Discrepancy Analysis:
       ${formattedDiscrepancies}
       
-      Missing Requirements:
+      ## Missing Requirements:
       ${missingRequirements.length > 0 ? missingRequirements.join("\n") : "None"}
       
-      Provide a clear explanation of the KYC status that identifies genuine compliance issues
-      and excludes false positives like formatting differences in names or addresses.
+      ## Guidelines for Analysis:
+      1. For address discrepancies, determine if they point to the same physical location or different locations. 
+         Minor formatting differences or varying levels of detail for the same location are NOT genuine compliance issues.
+      
+      2. For name discrepancies, determine if they are clearly the same person with variations in spelling, 
+         abbreviation, or middle names vs. potentially different individuals.
+      
+      3. ID number discrepancies are serious unless they are clearly the same number with formatting differences.
+      
+      4. Consider nationality context when evaluating address formats and ID types.
+      
+      5. Prioritize critical missing documents (ID proof, address proof) over minor issues.
+      
+      ## Output Format:
+      Provide a concise KYC status that:
+      - Separates genuine discrepancies from formatting differences
+      - Lists truly missing critical documents
+      - Explains compliance impact of identified issues
+      - Recommends specific documents needed to resolve the issues
+      - At the start of your response, include one line with either "FALSE_POSITIVE" or "GENUINE_ISSUE" to indicate if this is a false positive or genuine compliance issue
+      
+      Be direct, accurate, and focus on compliance requirements rather than minor formatting issues.
     `;
     
-    // Call the agent
-    const response = await kycStatusAnalysisAgent.generate([
-      { role: 'user', content: prompt }
-    ]);
-    
-    return response.text;
+    // Call the agent with timeout
+    try {
+      const result = await kycStatusAnalysisAgent.generate([
+        { role: 'user', content: prompt }
+      ]);
+      
+      // Use Promise.race with correct typing
+
+      // Check if response indicates false positive
+      const responseText = result.text;
+      const isFalsePositive = responseText.includes("FALSE_POSITIVE");
+      
+      // Return the response text with a special marker if it's a false positive
+      return isFalsePositive ? "FALSE_POSITIVE:" + responseText.replace("FALSE_POSITIVE", "") : responseText.replace("GENUINE_ISSUE", "");
+    } catch (timeoutError) {
+      console.error("KYC status analysis timed out:", timeoutError);
+      throw timeoutError;
+    }
   } catch (error) {
     console.error("Error getting detailed KYC status:", error);
     
     // Fallback to basic format if agent fails
+    let status = "";
+    
     if (discrepancies && discrepancies.length > 0) {
-      return discrepancies.map(d => 
-        `Discrepancy in ${d.field}: ${d.values.join(" vs ")} (Sources: ${d.sources.join(", ")})`
+      status += "Discrepancies: " + discrepancies.map(d => 
+        `${d.field}: ${d.values.join(" vs ")}`
       ).join("; ");
     } 
     
     if (missingRequirements.length > 0) {
-      return missingRequirements.join("; ");
+      if (status) status += ". ";
+      status += "Missing: " + missingRequirements.join("; ");
     }
     
-    return "Complete";
+    return status || "Complete";
   }
 }
 

@@ -15,6 +15,7 @@
     "@ai-sdk/google": "^1.2.10",
     "@mastra/core": "^0.8.2",
     "@mastra/memory": "^0.2.10",
+    "jsonrepair": "^3.12.0",
     "mastra": "^0.4.8",
     "zod": "^3.24.2"
   },

@@ -4,6 +4,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { SiteHeader } from "@/components/layout/site-header";
 import { motion } from "motion/react";
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Table,
   TableBody,
@@ -17,27 +18,54 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
 
+// API URL for real implementation
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 // Client interface with KYC status
 interface Client {
   id: number;
   name: string;
-  kycStatus: "Pending" | "Approved" | "Rejected";
+  kycStatus?: "Pending" | "Approved" | "Rejected";
 }
 
 export default function Clients() {
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Mock data - just Truffles for now with pending status
-  const clients: Client[] = useMemo(() => [
-    { id: 1, name: "Truffles", kycStatus: "Pending" }
-  ], []);
+  // Fetch clients from the KYC API
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['clients'],
+    queryFn: async () => {
+      try {
+        const response = await fetch(`${API_URL}/kyc/clients`);
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        const data = await response.json();
+        
+        // Map the response to match our Client interface
+        return {
+          clients: data.clients.map((client: any) => ({
+            id: client.id,
+            name: client.name,
+            // We could fetch KYC status for each client here or add it to the API
+            kycStatus: "Pending"
+          }))
+        };
+      } catch (error) {
+        console.error('Failed to fetch clients:', error);
+        throw error;
+      }
+    }
+  });
 
   // Filter clients based on search term
   const filteredClients = useMemo(() => {
-    return clients.filter((client) =>
+    if (!data?.clients) return [];
+    
+    return data.clients.filter((client: Client) =>
       client.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [clients, searchTerm]);
+  }, [data, searchTerm]);
 
   // Handle view details - navigates to the client's companies page
   const handleViewDetails = (clientId: number) => {
@@ -46,13 +74,15 @@ export default function Clients() {
   
   // Status badge component
   const StatusBadge = ({ status }: { status: Client["kycStatus"] }) => {
-    const variantMap: Record<Client["kycStatus"], "default" | "destructive" | "outline" | "secondary"> = {
+    if (!status) return null;
+    
+    const variantMap: Record<string, "default" | "destructive" | "outline" | "secondary"> = {
       Pending: "secondary",
       Approved: "default",
       Rejected: "destructive",
     };
     
-    return <Badge variant={variantMap[status]}>{status}</Badge>;
+    return <Badge variant={variantMap[status] || "outline"}>{status}</Badge>;
   };
 
   return (
@@ -88,44 +118,54 @@ export default function Clients() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>KYC Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredClients.length === 0 ? (
+              {isLoading ? (
+                <div className="flex justify-center items-center h-64">
+                  <p>Loading clients...</p>
+                </div>
+              ) : error ? (
+                <div className="flex justify-center items-center h-64 text-destructive">
+                  <p>Error: {(error as Error).message}</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center">
-                        No clients found.
-                      </TableCell>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>KYC Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ) : (
-                    filteredClients.map((client) => (
-                      <TableRow key={client.id}>
-                        <TableCell className="font-medium">{client.id}</TableCell>
-                        <TableCell>{client.name}</TableCell>
-                        <TableCell>
-                          <StatusBadge status={client.kycStatus} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewDetails(client.id)}
-                          >
-                            View Details
-                          </Button>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredClients.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center">
+                          No clients found.
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      filteredClients.map((client: Client) => (
+                        <TableRow key={client.id}>
+                          <TableCell className="font-medium">{client.id}</TableCell>
+                          <TableCell>{client.name}</TableCell>
+                          <TableCell>
+                            <StatusBadge status={client.kycStatus} />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewDetails(client.id)}
+                            >
+                              View Details
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </motion.div>
           </div>
         </div>
