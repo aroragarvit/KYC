@@ -141,6 +141,7 @@ function initializeKycDatabase() {
         client_id INTEGER NOT NULL,
         message TEXT NOT NULL,
         message_type TEXT NOT NULL CHECK(message_type IN ('agent', 'user')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients(id)
       );
     `);

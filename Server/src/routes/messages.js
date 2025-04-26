@@ -8,7 +8,7 @@ async function messagesRoutes(fastify, options) {
     fastify.get("/messages", async (request, reply) => {
       try {
         const { clientId } = request.query;
-        
+        console.log("clientId", clientId);
         if (!clientId) {
           return reply.code(400).send({ error: "Client ID is required" });
         }
@@ -18,7 +18,7 @@ async function messagesRoutes(fastify, options) {
             `SELECT * FROM messages WHERE client_id = ? ORDER BY created_at ASC`
           )
           .all(clientId);
-          
+          console.log("messages", messages);
         return reply.send(messages);
       } catch (error) {
         fastify.log.error('Error fetching messages:', error);
@@ -37,7 +37,7 @@ async function messagesRoutes(fastify, options) {
         
         const result = fastify.kycDb
           .prepare(
-            `INSERT INTO messages (client_id, message, message_type) VALUES (?, ?, ?) RETURNING *`
+            `INSERT INTO messages (client_id, message, message_type, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) RETURNING *`
           )
           .get(client_id, message, message_type);
           

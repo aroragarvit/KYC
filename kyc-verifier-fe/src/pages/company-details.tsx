@@ -17,7 +17,6 @@ import remarkGfm from 'remark-gfm';
 
 // API URL from Vite environment variables
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
 // Company interface
 interface Company {
   id: number;
@@ -1147,18 +1146,18 @@ export default function CompanyDetails() {
                   className="space-y-4"
                 >
               <Card>
-    <CardHeader>
-      <CardTitle className="flex items-center">
-        <MessageSquare className="h-5 w-5 mr-2" />
-        KYC Assistant Chat
-      </CardTitle>
-      <CardDescription>Chat with our KYC assistant about this company</CardDescription>
-    </CardHeader>
-    <CardContent>
-      {/* Replace the dummy chat UI with the functional KycChat component */}
-      <KycChat clientId={"1"} />
-    </CardContent>
-  </Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <MessageSquare className="h-5 w-5 mr-2" />
+                  KYC Assistant Chat
+                </CardTitle>
+                <CardDescription>Chat with our KYC assistant about this company</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* Replace the dummy chat UI with the functional KycChat component */}
+                <KycChat clientId={company.client_id?.toString() || ''} />
+              </CardContent>
+            </Card>
                 </TabsContent>
               </Tabs>
             </motion.div>
