@@ -12,6 +12,8 @@ import { ArrowLeft, FileText, Users, Download, Send, MessageSquare, User, Bot } 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
 import { KycChat } from '@/components/layout/kyc-chat';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // API URL from Vite environment variables
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -33,25 +35,23 @@ interface Company {
 // Director interface
 interface Director {
   id: number;
+  client_id?: number;
+  company_name?: string;
   director_name?: string;
-  full_name?: string;
   id_number?: string | null;
-  id_type?: string | null;
-  nationality?: string | null;
-  residential_address?: string | null;
-  telephone_number?: string | null;
-  email_address?: string | null;
-  discrepancies?: string | null;
-  verification_Status?: string | null;
-  KYC_Status?: string | null;
-  // Source fields
-  full_name_source?: string | null;
   id_number_source?: string | null;
+  id_type?: string | null;
   id_type_source?: string | null;
+  nationality?: string | null;
   nationality_source?: string | null;
+  residential_address?: string | null;
   residential_address_source?: string | null;
-  telephone_number_source?: string | null;
+  tel_number?: string | null;
+  tel_number_source?: string | null;
+  email_address?: string | null;
   email_address_source?: string | null;
+  verification_status?: string | null;
+  kyc_status?: string | null;
 }
 
 // Shareholder interface
@@ -109,6 +109,58 @@ function parseSourceField(field: any, defaultValue: string = '{}') {
     console.error('Error parsing JSON field:', e);
     return JSON.parse(defaultValue);
   }
+}
+
+// Helper function to extract document source information
+function getDocumentSource(sourceString: string | null) {
+  if (!sourceString) return null;
+  
+  try {
+    const parsed = JSON.parse(sourceString);
+    return {
+      documentId: parsed.documentId,
+      documentName: parsed.documentName,
+      documentType: parsed.documentType,
+      source: parsed.source
+    };
+  } catch (e) {
+    console.error('Error parsing document source:', e);
+    return null;
+  }
+}
+
+// Helper function to extract missing information from KYC status
+function extractMissingInfo(kycStatus: string | null) {
+  if (!kycStatus) return [];
+  
+  const missingItems = [];
+  
+  // Look for common phrases indicating missing information
+  if (kycStatus.includes("Missing Telephone Number") || 
+      kycStatus.includes("Missing telephone number") || 
+      kycStatus.includes("missing telephone number")) {
+    missingItems.push("telephone number");
+  }
+  
+  if (kycStatus.includes("Missing Email Address") || 
+      kycStatus.includes("Missing email address") || 
+      kycStatus.includes("missing email address")) {
+    missingItems.push("email address");
+  }
+  
+  if (kycStatus.includes("identification document") || 
+      kycStatus.includes("identity document") || 
+      kycStatus.includes("Missing ID")) {
+    missingItems.push("identification document");
+  }
+  
+  if (kycStatus.includes("address verification") || 
+      kycStatus.includes("proof of address") || 
+      kycStatus.includes("Missing address")) {
+    missingItems.push("address verification document");
+  }
+  
+  return missingItems;
 }
 
 export default function CompanyDetails() {
@@ -448,84 +500,190 @@ export default function CompanyDetails() {
                         <div className="text-center p-4">No directors found for this company.</div>
                       ) : (
                         <div className="space-y-6">
-                          {directors.map((director: Director, idx: number) => (
-                            <div
-                              key={idx}
-                              className="border rounded-lg p-4"
-                            >
-                              <h3 className="text-lg font-semibold mb-2">
-                                {director.full_name}
-                                {director.verification_Status && (
-                                  <Badge
-                                    variant={getBadgeVariant(director.verification_Status)}
-                                    className="ml-2"
+                          {directors.map((director: Director, idx: number) => {
+                            const idNumberSource = getDocumentSource(director.id_number_source || null);
+                            const idTypeSource = getDocumentSource(director.id_type_source || null);
+                            const nationalitySource = getDocumentSource(director.nationality_source || null);
+                            const addressSource = getDocumentSource(director.residential_address_source || null);
+                            const telSource = getDocumentSource(director.tel_number_source || null);
+                            const emailSource = getDocumentSource(director.email_address_source || null);
+                            const missingItems = extractMissingInfo(director.kyc_status || null);
+                            
+                            return (
+                              <div
+                                key={idx}
+                                className="bg-background/95 dark:bg-background rounded-lg p-8 border border-border/50"
+                              >
+                                <div className="flex justify-between items-center mb-6">
+                                  <h3 className="text-xl font-semibold">
+                                    {director.director_name}
+                                  </h3>
+                                  <Badge 
+                                    variant={getBadgeVariant(director.verification_status || "pending")}
+                                    className="text-xs px-3 py-1 font-medium"
                                   >
-                                    {director.verification_Status}
+                                    {director.verification_status || "pending"}
                                   </Badge>
-                                )}
-                              </h3>
-
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-3">
-                                <div>
-                                  <h4 className="text-sm font-medium text-muted-foreground mb-1">ID Information</h4>
-                                  <div className="space-y-2">
-                                    <div>
-                                      <span className="font-medium">Number:</span>{' '}
-                                      {director.id_number || 'Not provided'}
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Source: {director.id_number_source || 'Unknown'}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium">Type:</span> {director.id_type || 'Not provided'}
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Source: {director.id_type_source || 'Unknown'}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium">Nationality:</span>{' '}
-                                      {director.nationality || 'Not provided'}
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Source: {director.nationality_source || 'Unknown'}
-                                      </div>
-                                    </div>
-                                  </div>
                                 </div>
 
-                                <div>
-                                  <h4 className="text-sm font-medium text-muted-foreground mb-1">Address</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
                                   <div>
-                                    {director.residential_address || 'Not provided'}
+                                    <div className="text-sm font-medium text-muted-foreground">ID Number</div>
+                                    <div className="mt-1">{director.id_number || 'Not provided'}</div>
                                     <div className="text-xs text-muted-foreground mt-1">
-                                      Source: {director.residential_address_source || 'Unknown'}
+                                      Document Sources:
+                                      {idNumberSource && idNumberSource.documentName && (
+                                        <Badge variant="outline" className="ml-2 text-xs">
+                                          {idNumberSource.documentName}
+                                          {idNumberSource.documentType ? ` (${idNumberSource.documentType})` : ''}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground">ID Type</div>
+                                    <div className="mt-1">{director.id_type || 'Not provided'}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Document Sources:
+                                      {idTypeSource && idTypeSource.documentName && (
+                                        <Badge variant="outline" className="ml-2 text-xs">
+                                          {idTypeSource.documentName}
+                                          {idTypeSource.documentType ? ` (${idTypeSource.documentType})` : ''}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground">Nationality</div>
+                                    <div className="mt-1">{director.nationality || 'Not provided'}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Document Sources:
+                                      {nationalitySource && nationalitySource.documentName && (
+                                        <Badge variant="outline" className="ml-2 text-xs">
+                                          {nationalitySource.documentName}
+                                          {nationalitySource.documentType ? ` (${nationalitySource.documentType})` : ''}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground">Email</div>
+                                    <div className="mt-1">{director.email_address || 'Not provided'}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Document Sources:
+                                      {emailSource && emailSource.documentName ? (
+                                        <Badge variant="outline" className="ml-2 text-xs">
+                                          {emailSource.documentName}
+                                          {emailSource.documentType ? ` (${emailSource.documentType})` : ''}
+                                        </Badge>
+                                      ) : emailSource && emailSource.source === "No source" ? (
+                                        <span className="text-xs text-muted-foreground ml-2">No source</span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+
+                                  <div className="col-span-1 md:col-span-2">
+                                    <div className="text-sm font-medium text-muted-foreground">Address</div>
+                                    <div className="mt-1">{director.residential_address || 'Not provided'}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Document Sources:
+                                      {addressSource && addressSource.documentName && (
+                                        <Badge variant="outline" className="ml-2 text-xs">
+                                          {addressSource.documentName}
+                                          {addressSource.documentType ? ` (${addressSource.documentType})` : ''}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground">Phone</div>
+                                    <div className="mt-1">{director.tel_number || 'Not provided'}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Document Sources:
+                                      {telSource && telSource.documentName ? (
+                                        <Badge variant="outline" className="ml-2 text-xs">
+                                          {telSource.documentName}
+                                          {telSource.documentType ? ` (${telSource.documentType})` : ''}
+                                        </Badge>
+                                      ) : telSource && telSource.source === "No source" ? (
+                                        <span className="text-xs text-muted-foreground ml-2">No source</span>
+                                      ) : null}
                                     </div>
                                   </div>
                                 </div>
 
-                                <div>
-                                  <h4 className="text-sm font-medium text-muted-foreground mb-1">
-                                    Contact Information
-                                  </h4>
-                                  <div className="space-y-2">
-                                    <div>
-                                      <span className="font-medium">Phone:</span>{' '}
-                                      {director.telephone_number || 'Not provided'}
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Source: {director.telephone_number_source || 'Unknown'}
-                                      </div>
+                                {director.kyc_status && (
+                                  <div className="mt-6">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-info">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="12" y1="16" x2="12" y2="12" />
+                                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                                      </svg>
+                                      <h4 className="font-medium">KYC Status Information</h4>
                                     </div>
-                                    <div>
-                                      <span className="font-medium">Email:</span>{' '}
-                                      {director.email_address || 'Not provided'}
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Source: {director.email_address_source || 'Unknown'}
-                                      </div>
+                                    <div className="p-4 bg-muted/50 rounded-md text-sm">
+                                      <ReactMarkdown 
+                                        components={{
+                                          p: ({ node, ...props }) => (
+                                            <p className="text-muted-foreground mb-4" {...props} />
+                                          ),
+                                          h2: ({ node, ...props }) => (
+                                            <h2 className="text-base font-bold my-3" {...props} />
+                                          ),
+                                          h3: ({ node, ...props }) => (
+                                            <h3 className="text-sm font-bold my-2" {...props} />
+                                          ),
+                                          ul: ({ node, ...props }) => (
+                                            <ul className="list-disc pl-5 my-2" {...props} />
+                                          ),
+                                          li: ({ node, ...props }) => (
+                                            <li className="text-muted-foreground mb-1" {...props} />
+                                          ),
+                                          strong: ({ node, ...props }) => (
+                                            <strong className="font-bold" {...props} />
+                                          )
+                                        }}
+                                        remarkPlugins={[remarkGfm]}
+                                      >
+                                        {director.kyc_status}
+                                      </ReactMarkdown>
                                     </div>
                                   </div>
-                                </div>
+                                )}
+
+                                {(missingItems.length > 0 || !director.tel_number || !director.email_address) && (
+                                  <div className="mt-6">
+                                    <div className="flex items-center gap-2 text-destructive mb-2">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-alert-circle">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="12" y1="8" x2="12" y2="12" />
+                                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                                      </svg>
+                                      <h4 className="font-medium">Missing Required Information</h4>
+                                    </div>
+                                    <div className="p-4 bg-destructive/5 rounded-md text-sm">
+                                      <div className="text-destructive/90">The following required fields or documents are missing:</div>
+                                      <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-muted-foreground">
+                                        {!director.tel_number && <li>telephone number</li>}
+                                        {!director.email_address && <li>email address</li>}
+                                        {missingItems.filter(item => 
+                                          item !== "telephone number" && 
+                                          item !== "email address"
+                                        ).map((item, idx) => (
+                                          <li key={idx}>{item}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </CardContent>

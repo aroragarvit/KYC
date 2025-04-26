@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from 'uuid'; // For generating thread IDs
 import { useGetMessages, useAgentInteraction } from '@/queries/messages';
 
 export interface KycChatProps {
-  clientId: string; // ID of the client/individual/company being viewed
+  clientId: string | number; // ID of the client/individual/company being viewed
 }
 
 export const KycChat: React.FC<KycChatProps> = ({ clientId }) => {
@@ -21,18 +21,21 @@ export const KycChat: React.FC<KycChatProps> = ({ clientId }) => {
   const [threadId, setThreadId] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
+  // Convert clientId to string if it's a number
+  const clientIdString = clientId?.toString() || '';
+  
   // Query to fetch messages
-  const { data: messages, isLoading } = useGetMessages(clientId);
+  const { data: messages, isLoading } = useGetMessages(clientIdString);
   
   // Mutation to send message and get agent response
   const { mutate: interactWithAgent, isPending: isAgentThinking } = useAgentInteraction();
   
   // Generate a thread ID if we don't have one yet
   useEffect(() => {
-    if (!threadId) {
-      setThreadId(`thread_${clientId}_${uuidv4()}`);
+    if (!threadId && clientIdString) {
+      setThreadId(`thread_${clientIdString}_${uuidv4()}`);
     }
-  }, [clientId, threadId]);
+  }, [clientIdString, threadId]);
   
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -47,7 +50,7 @@ export const KycChat: React.FC<KycChatProps> = ({ clientId }) => {
     
     interactWithAgent({
       message: inputMessage,
-      clientId,
+      clientId: clientIdString,
       threadId,
     });
     

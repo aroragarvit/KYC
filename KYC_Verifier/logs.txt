@@ -1928,3 +1928,39 @@ Unhandled Rejection at: Promise {
   code: 'ERR_INVALID_STATE'
 }
 Unhandeled rejection
+[32mINFO[39m [2025-04-26 19:59:20.967 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
+[34mDEBUG[39m [2025-04-26 19:59:20.968 +0530] (Mastra CLI): [36mStopping current server...[39m
+[32mINFO[39m [2025-04-26 19:59:20.971 +0530] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
+[32mINFO[39m [2025-04-26 19:59:22.986 +0530] (Mastra): [36m🦄 Mastra API running on port 4111/api[39m
+[32mINFO[39m [2025-04-26 19:59:22.990 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
+[32mINFO[39m [2025-04-26 19:59:22.990 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
+[32mINFO[39m [2025-04-26 19:59:22.990 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
+[32mINFO[39m [2025-04-26 19:59:33.859 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
+[34mDEBUG[39m [2025-04-26 19:59:33.859 +0530] (Mastra CLI): [36mStopping current server...[39m
+[32mINFO[39m [2025-04-26 19:59:33.865 +0530] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
+[32mINFO[39m [2025-04-26 19:59:35.808 +0530] (Mastra): [36m🦄 Mastra API running on port 4111/api[39m
+[32mINFO[39m [2025-04-26 19:59:35.811 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
+[32mINFO[39m [2025-04-26 19:59:35.811 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
+[32mINFO[39m [2025-04-26 19:59:35.812 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
+[32mINFO[39m [2025-04-26 21:36:26.920 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
+[34mDEBUG[39m [2025-04-26 21:36:26.921 +0530] (Mastra CLI): [36mStopping current server...[39m
+[32mINFO[39m [2025-04-26 21:36:26.933 +0530] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
+[32mINFO[39m [2025-04-26 21:36:29.245 +0530] (Mastra): [36m🦄 Mastra API running on port 4111/api[39m
+[32mINFO[39m [2025-04-26 21:36:29.250 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
+[32mINFO[39m [2025-04-26 21:36:29.251 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
+[32mINFO[39m [2025-04-26 21:36:29.251 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
+[32mINFO[39m [2025-04-26 21:39:43.246 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
+[34mDEBUG[39m [2025-04-26 21:39:43.247 +0530] (Mastra CLI): [36mStopping current server...[39m
+[32mINFO[39m [2025-04-26 21:39:43.250 +0530] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
+[32mINFO[39m [2025-04-26 21:39:45.450 +0530] (Mastra): [36m🦄 Mastra API running on port 4111/api[39m
+[32mINFO[39m [2025-04-26 21:39:45.453 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
+[32mINFO[39m [2025-04-26 21:39:45.454 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
+[32mINFO[39m [2025-04-26 21:39:45.454 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
+[32mINFO[39m [2025-04-26 21:40:54.571 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
+[34mDEBUG[39m [2025-04-26 21:40:54.571 +0530] (Mastra CLI): [36mStopping current server...[39m
+[32mINFO[39m [2025-04-26 21:40:54.574 +0530] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
+[32mINFO[39m [2025-04-26 21:40:55.489 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
+[32mINFO[39m [2025-04-26 21:40:56.576 +0530] (Mastra): [36m🦄 Mastra API running on port 4111/api[39m
+[32mINFO[39m [2025-04-26 21:40:56.579 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
+[32mINFO[39m [2025-04-26 21:40:56.580 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
+[32mINFO[39m [2025-04-26 21:40:56.580 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
