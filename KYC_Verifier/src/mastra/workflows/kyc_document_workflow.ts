@@ -367,19 +367,11 @@ const classifyDocuments = new Step({
     try {
       // Import the correct agent
       console.log("Sending batch classification request to AI...");
-      const response = await documentClassificationAgent.stream([
+      const response = await documentClassificationAgent.generate([
         { role: 'user', content: batchPrompt }
       ]);
       
-      let classificationResult = '';
-      try {
-        for await (const chunk of response.textStream) {
-          classificationResult += chunk;
-        }
-      } catch (streamError) {
-        console.warn("Stream error encountered but continuing with parsing:", 
-          typeof streamError === 'object' && streamError !== null ? String(streamError) : 'Unknown error');
-      }
+      const classificationResult = response.text;
       
       console.log("Received batch classification response from AI");
       
@@ -587,19 +579,11 @@ const extractInformation = new Step({
     
     try {
       console.log("Sending prompt to extract information...");
-      const response = await kycAnalysisAgent.stream([
+      const response = await kycAnalysisAgent.generate([
         { role: 'user', content: prompt }
       ]);
       
-      let resultText = '';
-      try {
-        for await (const chunk of response.textStream) {
-          resultText += chunk;
-        }
-      } catch (streamError) {
-        console.warn("Stream error encountered but continuing with parsing:", 
-          typeof streamError === 'object' && streamError !== null ? String(streamError) : 'Unknown error');
-      }
+      const resultText = response.text;
       
       console.log("Received response, parsing...");
       
@@ -913,30 +897,20 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
     console.log("allIndividuals for directors", allIndividuals);
     console.log("directorNames", directorNames);
     for (const directorName of directorNames) {
-      // First try to find by exact full_name match (case insensitive)
-// Modify your director finding logic to be more flexible
+      // Find director by name - with improved matching
       let director = allIndividuals.find((ind: any) => {
-        // Check full name (exact match)
-        if (ind.full_name.trim().toLowerCase() === directorName.trim().toLowerCase()) {
+        // Check full name with more flexible matching
+        if (namesMatch(ind.full_name, directorName)) {
           return true;
         }
-
-        // Check alternative names (exact match)
+        
+        // Check alternative names with more flexible matching
         if (ind.alternative_names && Array.isArray(ind.alternative_names)) {
-          if (ind.alternative_names.some((altName: string) => 
-            altName.trim().toLowerCase() === directorName.trim().toLowerCase())) {
-            return true;
-          }
-
-          // Split names into parts and check if they match regardless of order
-          const directorNameParts = directorName.trim().toLowerCase().split(' ');
-          return ind.alternative_names.some((altName: string) => {
-            const altNameParts = altName.trim().toLowerCase().split(' ');
-            return directorNameParts.length === altNameParts.length && 
-                   directorNameParts.every(part => altNameParts.includes(part));
-          });
+          return ind.alternative_names.some((altName: string) => 
+            namesMatch(altName, directorName)
+          );
         }
-
+        
         return false;
       });
       
@@ -1122,49 +1096,21 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
         sharePctStr = shareMatch[2].trim();
       }
       let isIndividual = false;
-      // First try to find by exact full_name match (case insensitive)
-let individual = allIndividuals.find((ind: any) => 
-  ind.full_name.trim().toLowerCase() === parsedName.trim().toLowerCase());
-console.log("individual", individual);
-
-// If not found, try more flexible matching approaches
-if (!individual) {
-  console.log("individual not found by exact full_name match");
-  
-  // Check alternative_names for exact match
-  individual = allIndividuals.find((ind: any) => 
-    ind.alternative_names && 
-    Array.isArray(ind.alternative_names) && 
-    ind.alternative_names.some((altName: string) => 
-      altName.trim().toLowerCase() === parsedName.trim().toLowerCase())
-  );
-  
-  // If still not found, try matching by name parts (regardless of order)
-  if (!individual) {
-    console.log("individual not found by exact alternative_names match, trying name parts matching");
-    const parsedNameParts = parsedName.trim().toLowerCase().split(' ');
-    
-    individual = allIndividuals.find((ind: any) => {
-      // Check if full_name contains the same parts
-      const fullNameParts = ind.full_name.trim().toLowerCase().split(' ');
-      if (parsedNameParts.length === fullNameParts.length && 
-          parsedNameParts.every(part => fullNameParts.includes(part))) {
-        return true;
-      }
       
-      // Check alternative_names
-      if (ind.alternative_names && Array.isArray(ind.alternative_names)) {
-        return ind.alternative_names.some((altName: string) => {
-          const altNameParts = altName.trim().toLowerCase().split(' ');
-          return parsedNameParts.length === altNameParts.length && 
-                 parsedNameParts.every(part => altNameParts.includes(part));
-        });
-      }
+      // Find individual with improved matching
+      let individual = allIndividuals.find((ind: any) => 
+        namesMatch(ind.full_name, parsedName));
       
-      return false;
-    });
-  }
-}
+      if (!individual && allIndividuals.length > 0) {
+        // Try alternative names with improved matching
+        individual = allIndividuals.find((ind: any) => 
+          ind.alternative_names && 
+          Array.isArray(ind.alternative_names) && 
+          ind.alternative_names.some((altName: string) => 
+            namesMatch(altName, parsedName)
+          )
+        );
+      }
       
       if (individual) isIndividual = true;
       let idInfo, idTypeInfo, nationalityInfo, addressInfo, phoneInfo, emailInfo, sharesInfo, priceInfo;
@@ -1494,6 +1440,7 @@ async function getDetailedKycStatus(
 ): Promise<string> {
   try {
     // Format discrepancies for the agent
+    await new Promise(resolve => setTimeout(resolve, 10000));
     const formattedDiscrepancies = discrepancies?.map(d => 
       `${d.field}: ${d.values.join(" vs ")} (Sources: ${d.sources.join(", ")})`
     ).join("\n") || "None";
@@ -1536,6 +1483,34 @@ async function getDetailedKycStatus(
     
     return "Complete";
   }
+}
+
+// Helper function to check if names match (handles partial matches)
+function namesMatch(name1: string, name2: string): boolean {
+  // Clean and normalize both names
+  const normalizedName1 = name1.trim().toLowerCase();
+  const normalizedName2 = name2.trim().toLowerCase();
+  
+  // Check for exact match
+  if (normalizedName1 === normalizedName2) {
+    return true;
+  }
+  
+  // Split names into parts
+  const name1Parts = normalizedName1.split(/\s+/);
+  const name2Parts = normalizedName2.split(/\s+/);
+  
+  // If one name has only one part, require exact match
+  if (name1Parts.length === 1 || name2Parts.length === 1) {
+    return normalizedName1.includes(normalizedName2) || normalizedName2.includes(normalizedName1);
+  }
+  
+  // Count matching parts
+  const commonParts = name1Parts.filter(part => name2Parts.includes(part));
+  
+  // Consider it a match if at least half of the parts match
+  const minPartsRequired = Math.min(name1Parts.length, name2Parts.length) * 0.5;
+  return commonParts.length >= minPartsRequired;
 }
 
 // Create and commit the workflow

@@ -2,36 +2,13 @@
 > kyc_verifier@1.0.0 dev
 > mastra dev
 
-[32mINFO[39m [2025-04-26 17:11:42.242 +0530] (BUNDLER - Dev): [36mStarting watcher...[39m
-[32mINFO[39m [2025-04-26 17:11:43.007 +0530] (BUNDLER - Dev): [36mBundling finished, starting server...[39m
-[32mINFO[39m [2025-04-26 17:11:43.025 +0530] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
-[32mINFO[39m [2025-04-26 17:11:44.650 +0530] (Mastra): [36m🦄 Mastra API running on port 4111/api[39m
-[32mINFO[39m [2025-04-26 17:11:44.654 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
-[32mINFO[39m [2025-04-26 17:11:44.655 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
-[32mINFO[39m [2025-04-26 17:11:44.655 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
-[32mINFO[39m [2025-04-26 17:17:09.762 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
-[34mDEBUG[39m [2025-04-26 17:17:09.763 +0530] (Mastra CLI): [36mStopping current server...[39m
-[32mINFO[39m [2025-04-26 17:17:09.766 +0530] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
-[32mINFO[39m [2025-04-26 17:17:11.423 +0530] (Mastra): [36m🦄 Mastra API running on port 4111/api[39m
-[32mINFO[39m [2025-04-26 17:17:11.426 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
-[32mINFO[39m [2025-04-26 17:17:11.426 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
-[32mINFO[39m [2025-04-26 17:17:11.426 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
-[32mINFO[39m [2025-04-26 17:17:28.967 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
-[34mDEBUG[39m [2025-04-26 17:17:28.968 +0530] (Mastra CLI): [36mStopping current server...[39m
-[32mINFO[39m [2025-04-26 17:17:28.969 +0530] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
-[32mINFO[39m [2025-04-26 17:17:30.482 +0530] (Mastra): [36m🦄 Mastra API running on port 4111/api[39m
-[32mINFO[39m [2025-04-26 17:17:30.485 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
-[32mINFO[39m [2025-04-26 17:17:30.486 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
-[32mINFO[39m [2025-04-26 17:17:30.486 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
-[32mINFO[39m [2025-04-26 17:17:31.627 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
-[32mINFO[39m [2025-04-26 17:18:09.587 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
-[34mDEBUG[39m [2025-04-26 17:18:09.588 +0530] (Mastra CLI): [36mStopping current server...[39m
-[32mINFO[39m [2025-04-26 17:18:09.590 +0530] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
-[32mINFO[39m [2025-04-26 17:18:10.857 +0530] (Mastra CLI): [36m[Mastra Dev] - Bundling finished, restarting server...[39m
-[32mINFO[39m [2025-04-26 17:18:11.102 +0530] (Mastra): [36m🦄 Mastra API running on port 4111/api[39m
-[32mINFO[39m [2025-04-26 17:18:11.106 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
-[32mINFO[39m [2025-04-26 17:18:11.106 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
-[32mINFO[39m [2025-04-26 17:18:11.106 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
+[32mINFO[39m [2025-04-26 17:33:40.869 +0530] (BUNDLER - Dev): [36mStarting watcher...[39m
+[32mINFO[39m [2025-04-26 17:33:41.890 +0530] (BUNDLER - Dev): [36mBundling finished, starting server...[39m
+[32mINFO[39m [2025-04-26 17:33:41.919 +0530] (Mastra CLI): [36m[Mastra Dev] - Starting server...[39m
+[32mINFO[39m [2025-04-26 17:33:43.679 +0530] (Mastra): [36m🦄 Mastra API running on port 4111/api[39m
+[32mINFO[39m [2025-04-26 17:33:43.682 +0530] (Mastra): [36m📚 Open API documentation available at http://localhost:4111/openapi.json[39m
+[32mINFO[39m [2025-04-26 17:33:43.683 +0530] (Mastra): [36m🧪 Swagger UI available at http://localhost:4111/swagger-ui[39m
+[32mINFO[39m [2025-04-26 17:33:43.683 +0530] (Mastra): [36m👨‍💻 Playground available at http://localhost:4111/[39m
 Fetching documents for client ID: 1...
 Reading content for document 1: Chee_chung_address.txt
 Reading content for document 2: MM_ID_MichealMcKay_passport.txt
@@ -43,22 +20,617 @@ Reading content for document 7: mn_address_statement.txt
 Classifying 7 documents in a single batch...
 Sending batch classification request to AI...
 Received batch classification response from AI
-Classified document 1: Chee_chung_address.txt as unknown
-Classified document 2: MM_ID_MichealMcKay_passport.txt as unknown
-Classified document 3: MM_address_statement.txt as unknown
-Classified document 4: MN_ID_MonikaNowaczyk_passport.txt as unknown
-Classified document 5: chee_chung_idNRIC.txt as unknown
-Classified document 6: companyProfile.txt as unknown
-Classified document 7: mn_address_statement.txt as unknown
+Classified document 1: Chee_chung_address.txt as proof_of_address
+Classified document 2: MM_ID_MichealMcKay_passport.txt as identity_document
+Classified document 3: MM_address_statement.txt as proof_of_address
+Classified document 4: MN_ID_MonikaNowaczyk_passport.txt as identity_document
+Classified document 5: chee_chung_idNRIC.txt as identity_document
+Classified document 6: companyProfile.txt as company_profile
+Classified document 7: mn_address_statement.txt as proof_of_address
 Extracting information from 7 documents...
 Sending prompt to extract information...
 Received response, parsing...
-resultText is 
-Could not find valid JSON object markers in response
-Error extracting information: Error: Could not locate JSON object in response
-    at execute (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/.mastra/output/index.mjs:3550:15)
+resultText is ```json
+{"individuals": [{"full_name": "Tham Chee Chung", "alternative_names": ["Tan Zhicong", "谭志聪"], "id_numbers": {"chee_chung_idNRIC.txt": {"documentId": 5, "documentName": "chee_chung_idNRIC.txt", "documentType": "identity_document", "value": "S7247859B"}}, "id_types": {"chee_chung_idNRIC.txt": {"documentId": 5, "documentName": "chee_chung_idNRIC.txt", "documentType": "identity_document", "value": "NRIC"}}, "nationalities": {"chee_chung_idNRIC.txt": {"documentId": 5, "documentName": "chee_chung_idNRIC.txt", "documentType": "identity_document", "value": "SINGAPORE"}}, "addresses": {"Chee_chung_address.txt": {"documentId": 1, "documentName": "Chee_chung_address.txt", "documentType": "proof_of_address", "value": "APT BLK 747C BEDOK RESERVOIR CRESCENT #11-31 BELVIA DBSS SINGAPORE 473747"}, "chee_chung_idNRIC.txt": {"documentId": 5, "documentName": "chee_chung_idNRIC.txt", "documentType": "identity_document", "value": "APT BLK 747C BEDOK RESERVOIR RD SINGAPORE 473747"}, "companyProfile.txt": {"documentId": 6, "documentName": "companyProfile.txt", "documentType": "company_profile", "value": "747C BEDOK RESERVOIR CRESCENT #11-31 BELVIA SINGAPORE (473747)"}}, "emails": {}, "phones": {}, "roles": {"BEEBEE+BONGO PTE. LTD.": "Director"}, "shares_owned": {}}, {"full_name": "Michael Andrew Mckay", "alternative_names": ["Mckay Micheal Andrew"], "id_numbers": {"MM_ID_MichealMcKay_passport.txt": {"documentId": 2, "documentName": "MM_ID_MichealMcKay_passport.txt", "documentType": "identity_document", "value": "AJ855933"}}, "id_types": {"MM_ID_MichealMcKay_passport.txt": {"documentId": 2, "documentName": "MM_ID_MichealMcKay_passport.txt", "documentType": "identity_document", "value": "Passport"}}, "nationalities": {"MM_ID_MichealMcKay_passport.txt": {"documentId": 2, "documentName": "MM_ID_MichealMcKay_passport.txt", "documentType": "identity_document", "value": "CANADIAN"}}, "addresses": {"MM_address_statement.txt": {"documentId": 3, "documentName": "MM_address_statement.txt", "documentType": "proof_of_address", "value": "No 38 Street 426,Phum1,Toul Tompung2, Chamkar Mon,Phnom Penh"}, "companyProfile.txt": {"documentId": 6, "documentName": "companyProfile.txt", "documentType": "company_profile", "value": "APT 702, #38 STREET 426, PHNOM PENH, CAMBODIA"}}, "emails": {}, "phones": {}, "roles": {"BEEBEE+BONGO PTE. LTD.": "Director"}, "shares_owned": {"companyProfile.txt": {"documentId": 6, "documentName": "companyProfile.txt", "documentType": "company_profile", "companyName": "BEEBEE+BONGO PTE. LTD.", "value": "30 shares"}}}, {"full_name": "Monika Nowaczyk", "alternative_names": [], "id_numbers": {"MN_ID_MonikaNowaczyk_passport.txt": {"documentId": 4, "documentName": "MN_ID_MonikaNowaczyk_passport.txt", "documentType": "identity_document", "value": "HG066207"}}, "id_types": {"MN_ID_MonikaNowaczyk_passport.txt": {"documentId": 4, "documentName": "MN_ID_MonikaNowaczyk_passport.txt", "documentType": "identity_document", "value": "Passport"}}, "nationalities": {"MN_ID_MonikaNowaczyk_passport.txt": {"documentId": 4, "documentName": "MN_ID_MonikaNowaczyk_passport.txt", "documentType": "identity_document", "value": "CANADIAN"}}, "addresses": {"mn_address_statement.txt": {"documentId": 7, "documentName": "mn_address_statement.txt", "documentType": "proof_of_address", "value": "104BE02,0,470,Phum1,Tuol Tumpung Ti Pir, Chamkar Mon,Phnom Penh"}, "companyProfile.txt": {"documentId": 6, "documentName": "companyProfile.txt", "documentType": "company_profile", "value": "HOUSE 104BE02 STREET 470, PHNOM PENH, CAMBODIA"}}, "emails": {}, "phones": {}, "roles": {"BEEBEE+BONGO PTE. LTD.": "Director"}, "shares_owned": {"companyProfile.txt": {"documentId": 6, "documentName": "companyProfile.txt", "documentType": "company_profile", "companyName": "BEEBEE+BONGO PTE. LTD.", "value": "70 shares"}}}, {"full_name": "Ng Cheng Wei", "alternative_names": [], "id_numbers": {"companyProfile.txt": {"documentId": 6, "documentName": "companyProfile.txt", "documentType": "company_profile", "value": "S8829811Z"}}, "id_types": {"companyProfile.txt": {"documentId": 6, "documentName": "companyProfile.txt", "documentType": "company_profile", "value": "NRIC"}}, "nationalities": {"companyProfile.txt": {"documentId": 6, "documentName": "companyProfile.txt", "documentType": "company_profile", "value": "SINGAPORE CITIZEN"}}, "addresses": {"companyProfile.txt": {"documentId": 6, "documentName": "companyProfile.txt", "documentType": "company_profile", "value": "20A TANJONG PAGAR ROAD SINGAPORE (088443)"}}, "emails": {}, "phones": {}, "roles": {"BEEBEE+BONGO PTE. LTD.": "Secretary"}, "shares_owned": {}}], "companies": [{"company_name": "BEEBEE+BONGO PTE. LTD.", "registration_number": {"companyProfile.txt": {"documentId": 6, "documentName": "companyProfile.txt", "documentType": "company_profile", "value": "202103382H"}}, "jurisdiction": {"companyProfile.txt": {"documentId": 6, "documentName": "companyProfile.txt", "documentType": "company_profile", "value": "SINGAPORE"}}, "address": {"companyProfile.txt": {"documentId": 6, "documentName": "companyProfile.txt", "documentType": "company_profile", "value": "20A TANJONG PAGAR ROAD SINGAPORE (088443)"}}, "directors": ["Micheal Andrew Mckay", "Monika Nowaczyk", "Tham Chee Chung"], "shareholders": ["Michael Andrew Mckay (30%)", "Monika Nowaczyk (70%)"], "company_activities": {"companyProfile.txt": {"documentId": 6, "documentName": "companyProfile.txt", "documentType": "company_profile", "value": "WHOLESALE OF TOYS AND GAMES", "value": "RETAIL SALE OF GAMES AND TOYS"}}, "shares_issued": {"companyProfile.txt": {"documentId": 6, "documentName": "companyProfile.txt", "documentType": "company_profile", "value": "100 shares"}}}, {"company_name": "Singapore Telecommunications Limited", "registration_number": {"Chee_chung_address.txt": {"documentId": 1, "documentName": "Chee_chung_address.txt", "documentType": "proof_of_address", "value": "199201624D"}}, "jurisdiction": {"Chee_chung_address.txt": {"documentId": 1, "documentName": "Chee_chung_address.txt", "documentType": "proof_of_address", "value": "Singapore"}}, "address": {"Chee_chung_address.txt": {"documentId": 1, "documentName": "Chee_chung_address.txt", "documentType": "proof_of_address", "value": "BRAS BASAH POST OFFICE PO BOX 294 SINGAPORE 911810"}}, "directors": [], "shareholders": [], "company_activities": {}, "shares_issued": {}}]}
+```
+Sanitized JSON (first 100 chars): {"individuals": [{"full_name": "Tham Chee Chung", "alternative_names": ["Tan Zhicong", "谭志聪"], "id_n...
+Successfully extracted information about 4 individuals and 2 companies
+Processing discrepancies in extracted data...
+Storing extracted information...
+Stored new individual: Tham Chee Chung
+Stored new individual: Michael Andrew Mckay
+Stored new individual: Monika Nowaczyk
+Stored new individual: Ng Cheng Wei
+Stored new company: BEEBEE+BONGO PTE. LTD.
+
+=== Processing directors for company: BEEBEE+BONGO PTE. LTD. ===
+
+COMPANY DETAILS TABLE
+===================
+a. Intended Company Name: BEEBEE+BONGO PTE. LTD.
+b. Alternative Company Name 1: N/A
+c. Alternative Company Name 2: N/A
+d. Company Activities: RETAIL SALE OF GAMES AND TOYS
+e. Intended Registered Address: 20A TANJONG PAGAR ROAD SINGAPORE (088443)
+
+DIRECTORS TABLE
+==============
+| Name (Source) | ID No. (Source) | ID Type (Source) | Nationality (Source) | Residential Address (Source) | Tel. No. (Source) | Email Address (Source) | Verification Status | KYC Status |
+|---------------|-----------------|------------------|--------------------|-----------------------------|------------------|---------------------|-------------------|-------------|
+allIndividuals for directors [
+  {
+    id: 1,
+    client_id: 1,
+    full_name: 'Tham Chee Chung',
+    alternative_names: [ 'Tan Zhicong', '谭志聪' ],
+    id_numbers: { 'chee_chung_idNRIC.txt': [Object] },
+    id_types: { 'chee_chung_idNRIC.txt': [Object] },
+    nationalities: { 'chee_chung_idNRIC.txt': [Object] },
+    addresses: {
+      'Chee_chung_address.txt': [Object],
+      'chee_chung_idNRIC.txt': [Object],
+      'companyProfile.txt': [Object]
+    },
+    emails: {},
+    phones: {},
+    roles: { 'BEEBEE+BONGO PTE. LTD.': 'Director' },
+    shares_owned: {},
+    price_per_share: {},
+    discrepancies: [ [Object] ]
+  },
+  {
+    id: 2,
+    client_id: 1,
+    full_name: 'Michael Andrew Mckay',
+    alternative_names: [ 'Mckay Micheal Andrew' ],
+    id_numbers: { 'MM_ID_MichealMcKay_passport.txt': [Object] },
+    id_types: { 'MM_ID_MichealMcKay_passport.txt': [Object] },
+    nationalities: { 'MM_ID_MichealMcKay_passport.txt': [Object] },
+    addresses: {
+      'MM_address_statement.txt': [Object],
+      'companyProfile.txt': [Object]
+    },
+    emails: {},
+    phones: {},
+    roles: { 'BEEBEE+BONGO PTE. LTD.': 'Director' },
+    shares_owned: { 'companyProfile.txt': [Object] },
+    price_per_share: {},
+    discrepancies: [ [Object] ]
+  },
+  {
+    id: 3,
+    client_id: 1,
+    full_name: 'Monika Nowaczyk',
+    alternative_names: [],
+    id_numbers: { 'MN_ID_MonikaNowaczyk_passport.txt': [Object] },
+    id_types: { 'MN_ID_MonikaNowaczyk_passport.txt': [Object] },
+    nationalities: { 'MN_ID_MonikaNowaczyk_passport.txt': [Object] },
+    addresses: {
+      'mn_address_statement.txt': [Object],
+      'companyProfile.txt': [Object]
+    },
+    emails: {},
+    phones: {},
+    roles: { 'BEEBEE+BONGO PTE. LTD.': 'Director' },
+    shares_owned: { 'companyProfile.txt': [Object] },
+    price_per_share: {},
+    discrepancies: [ [Object] ]
+  },
+  {
+    id: 4,
+    client_id: 1,
+    full_name: 'Ng Cheng Wei',
+    alternative_names: [],
+    id_numbers: { 'companyProfile.txt': [Object] },
+    id_types: { 'companyProfile.txt': [Object] },
+    nationalities: { 'companyProfile.txt': [Object] },
+    addresses: { 'companyProfile.txt': [Object] },
+    emails: {},
+    phones: {},
+    roles: { 'BEEBEE+BONGO PTE. LTD.': 'Secretary' },
+    shares_owned: {},
+    price_per_share: {},
+    discrepancies: []
+  }
+]
+directorNames [ 'Micheal Andrew Mckay', 'Monika Nowaczyk', 'Tham Chee Chung' ]
+Fetching documents for client ID: 1...
+Reading content for document 1: Chee_chung_address.txt
+Reading content for document 2: MM_ID_MichealMcKay_passport.txt
+Reading content for document 3: MM_address_statement.txt
+Reading content for document 4: MN_ID_MonikaNowaczyk_passport.txt
+Reading content for document 5: chee_chung_idNRIC.txt
+Reading content for document 6: companyProfile.txt
+Reading content for document 7: mn_address_statement.txt
+Classifying 7 documents in a single batch...
+All documents already have classifications. Skipping classification step.
+Extracting information from 7 documents...
+Sending prompt to extract information...
+Error extracting information: RetryError [AI_RetryError]: Failed after 3 attempts. Last error: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits.
+    at _retryWithExponentialBackoff (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:283:13)
     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async fn (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:4169:32)
+    at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:470:22
+    at async MastraLLM.__text (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:302:12)
+    at async Agent.generate (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:1480:23)
+    at async execute (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/.mastra/output/index.mjs:3519:24)
     at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:4529:16
     at async handler (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:4555:28)
-    at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:4529:16
-    at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:2389:20
+    at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:4529:16 {
+  cause: undefined,
+  reason: 'maxRetriesExceeded',
+  errors: [
+    APICallError [AI_APICallError]: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits.
+        at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@ai-sdk/provider-utils/dist/index.mjs:667:14
+        at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+        at async postToApi (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@ai-sdk/provider-utils/dist/index.mjs:567:28)
+        at async GoogleGenerativeAILanguageModel.doGenerate (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@ai-sdk/google/dist/index.mjs:520:9)
+        at async fn (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:4209:30)
+        at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:470:22
+        at async _retryWithExponentialBackoff (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:271:12)
+        at async fn (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:4169:32)
+        at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:470:22
+        at async MastraLLM.__text (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:302:12) {
+      cause: undefined,
+      url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent',
+      requestBodyValues: [Object],
+      statusCode: 429,
+      responseHeaders: [Object],
+      responseBody: '{\n' +
+        '  "error": {\n' +
+        '    "code": 429,\n' +
+        '    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits.",\n' +
+        '    "status": "RESOURCE_EXHAUSTED",\n' +
+        '    "details": [\n' +
+        '      {\n' +
+        '        "@type": "type.googleapis.com/google.rpc.QuotaFailure",\n' +
+        '        "violations": [\n' +
+        '          {\n' +
+        '            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_input_token_count",\n' +
+        '            "quotaId": "GenerateContentInputTokensPerModelPerMinute-FreeTier",\n' +
+        '            "quotaDimensions": {\n' +
+        '              "location": "global",\n' +
+        '              "model": "gemini-1.5-pro"\n' +
+        '            },\n' +
+        '            "quotaValue": "32000"\n' +
+        '          }\n' +
+        '        ]\n' +
+        '      },\n' +
+        '      {\n' +
+        '        "@type": "type.googleapis.com/google.rpc.Help",\n' +
+        '        "links": [\n' +
+        '          {\n' +
+        '            "description": "Learn more about Gemini API quotas",\n' +
+        '            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"\n' +
+        '          }\n' +
+        '        ]\n' +
+        '      },\n' +
+        '      {\n' +
+        '        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n' +
+        '        "retryDelay": "20s"\n' +
+        '      }\n' +
+        '    ]\n' +
+        '  }\n' +
+        '}\n',
+      isRetryable: true,
+      data: [Object],
+      [Symbol(vercel.ai.error)]: true,
+      [Symbol(vercel.ai.error.AI_APICallError)]: true
+    },
+    APICallError [AI_APICallError]: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits.
+        at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@ai-sdk/provider-utils/dist/index.mjs:667:14
+        at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+        at async postToApi (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@ai-sdk/provider-utils/dist/index.mjs:567:28)
+        at async GoogleGenerativeAILanguageModel.doGenerate (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@ai-sdk/google/dist/index.mjs:520:9)
+        at async fn (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:4209:30)
+        at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:470:22
+        at async _retryWithExponentialBackoff (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:271:12)
+        at async fn (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:4169:32)
+        at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:470:22
+        at async MastraLLM.__text (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:302:12) {
+      cause: undefined,
+      url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent',
+      requestBodyValues: [Object],
+      statusCode: 429,
+      responseHeaders: [Object],
+      responseBody: '{\n' +
+        '  "error": {\n' +
+        '    "code": 429,\n' +
+        '    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits.",\n' +
+        '    "status": "RESOURCE_EXHAUSTED",\n' +
+        '    "details": [\n' +
+        '      {\n' +
+        '        "@type": "type.googleapis.com/google.rpc.QuotaFailure",\n' +
+        '        "violations": [\n' +
+        '          {\n' +
+        '            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n' +
+        '            "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",\n' +
+        '            "quotaDimensions": {\n' +
+        '              "model": "gemini-1.5-pro",\n' +
+        '              "location": "global"\n' +
+        '            },\n' +
+        '            "quotaValue": "2"\n' +
+        '          }\n' +
+        '        ]\n' +
+        '      },\n' +
+        '      {\n' +
+        '        "@type": "type.googleapis.com/google.rpc.Help",\n' +
+        '        "links": [\n' +
+        '          {\n' +
+        '            "description": "Learn more about Gemini API quotas",\n' +
+        '            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"\n' +
+        '          }\n' +
+        '        ]\n' +
+        '      },\n' +
+        '      {\n' +
+        '        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n' +
+        '        "retryDelay": "18s"\n' +
+        '      }\n' +
+        '    ]\n' +
+        '  }\n' +
+        '}\n',
+      isRetryable: true,
+      data: [Object],
+      [Symbol(vercel.ai.error)]: true,
+      [Symbol(vercel.ai.error.AI_APICallError)]: true
+    },
+    APICallError [AI_APICallError]: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits.
+        at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@ai-sdk/provider-utils/dist/index.mjs:667:14
+        at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+        at async postToApi (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@ai-sdk/provider-utils/dist/index.mjs:567:28)
+        at async GoogleGenerativeAILanguageModel.doGenerate (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@ai-sdk/google/dist/index.mjs:520:9)
+        at async fn (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:4209:30)
+        at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:470:22
+        at async _retryWithExponentialBackoff (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:271:12)
+        at async fn (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:4169:32)
+        at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:470:22
+        at async MastraLLM.__text (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:302:12) {
+      cause: undefined,
+      url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent',
+      requestBodyValues: [Object],
+      statusCode: 429,
+      responseHeaders: [Object],
+      responseBody: '{\n' +
+        '  "error": {\n' +
+        '    "code": 429,\n' +
+        '    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits.",\n' +
+        '    "status": "RESOURCE_EXHAUSTED",\n' +
+        '    "details": [\n' +
+        '      {\n' +
+        '        "@type": "type.googleapis.com/google.rpc.QuotaFailure",\n' +
+        '        "violations": [\n' +
+        '          {\n' +
+        '            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n' +
+        '            "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",\n' +
+        '            "quotaDimensions": {\n' +
+        '              "model": "gemini-1.5-pro",\n' +
+        '              "location": "global"\n' +
+        '            },\n' +
+        '            "quotaValue": "2"\n' +
+        '          }\n' +
+        '        ]\n' +
+        '      },\n' +
+        '      {\n' +
+        '        "@type": "type.googleapis.com/google.rpc.Help",\n' +
+        '        "links": [\n' +
+        '          {\n' +
+        '            "description": "Learn more about Gemini API quotas",\n' +
+        '            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"\n' +
+        '          }\n' +
+        '        ]\n' +
+        '      },\n' +
+        '      {\n' +
+        '        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n' +
+        '        "retryDelay": "13s"\n' +
+        '      }\n' +
+        '    ]\n' +
+        '  }\n' +
+        '}\n',
+      isRetryable: true,
+      data: [Object],
+      [Symbol(vercel.ai.error)]: true,
+      [Symbol(vercel.ai.error.AI_APICallError)]: true
+    }
+  ],
+  lastError: APICallError [AI_APICallError]: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits.
+      at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@ai-sdk/provider-utils/dist/index.mjs:667:14
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async postToApi (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@ai-sdk/provider-utils/dist/index.mjs:567:28)
+      at async GoogleGenerativeAILanguageModel.doGenerate (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@ai-sdk/google/dist/index.mjs:520:9)
+      at async fn (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:4209:30)
+      at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:470:22
+      at async _retryWithExponentialBackoff (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:271:12)
+      at async fn (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:4169:32)
+      at async file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/ai/dist/index.mjs:470:22
+      at async MastraLLM.__text (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:302:12) {
+    cause: undefined,
+    url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent',
+    requestBodyValues: {
+      generationConfig: [Object],
+      contents: [Array],
+      systemInstruction: [Object],
+      safetySettings: undefined,
+      tools: undefined,
+      toolConfig: undefined,
+      cachedContent: undefined
+    },
+    statusCode: 429,
+    responseHeaders: {
+      'alt-svc': 'h3=":443"; ma=2592000,h3-29=":443"; ma=2592000',
+      'content-encoding': 'gzip',
+      'content-type': 'application/json; charset=UTF-8',
+      date: 'Sat, 26 Apr 2025 12:04:46 GMT',
+      server: 'scaffolding on HTTPServer2',
+      'server-timing': 'gfet4t7; dur=786',
+      'transfer-encoding': 'chunked',
+      vary: 'Origin, X-Origin, Referer',
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'SAMEORIGIN',
+      'x-xss-protection': '0'
+    },
+    responseBody: '{\n' +
+      '  "error": {\n' +
+      '    "code": 429,\n' +
+      '    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits.",\n' +
+      '    "status": "RESOURCE_EXHAUSTED",\n' +
+      '    "details": [\n' +
+      '      {\n' +
+      '        "@type": "type.googleapis.com/google.rpc.QuotaFailure",\n' +
+      '        "violations": [\n' +
+      '          {\n' +
+      '            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",\n' +
+      '            "quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier",\n' +
+      '            "quotaDimensions": {\n' +
+      '              "model": "gemini-1.5-pro",\n' +
+      '              "location": "global"\n' +
+      '            },\n' +
+      '            "quotaValue": "2"\n' +
+      '          }\n' +
+      '        ]\n' +
+      '      },\n' +
+      '      {\n' +
+      '        "@type": "type.googleapis.com/google.rpc.Help",\n' +
+      '        "links": [\n' +
+      '          {\n' +
+      '            "description": "Learn more about Gemini API quotas",\n' +
+      '            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"\n' +
+      '          }\n' +
+      '        ]\n' +
+      '      },\n' +
+      '      {\n' +
+      '        "@type": "type.googleapis.com/google.rpc.RetryInfo",\n' +
+      '        "retryDelay": "13s"\n' +
+      '      }\n' +
+      '    ]\n' +
+      '  }\n' +
+      '}\n',
+    isRetryable: true,
+    data: { error: [Object] },
+    [Symbol(vercel.ai.error)]: true,
+    [Symbol(vercel.ai.error.AI_APICallError)]: true
+  },
+  [Symbol(vercel.ai.error)]: true,
+  [Symbol(vercel.ai.error.AI_RetryError)]: true
+}
+| Michael Andrew Mckay (No source) | AJ855933 (MM_ID_MichealMcKay_passport.txt) | Passport (MM_ID_MichealMcKay_passport.txt) | CANADIAN (MM_ID_MichealMcKay_passport.txt) | No 38 Street 426,Phum1,Toul Tompung2, Chamkar Mon,Phnom Penh (MM_address_statement.txt) | Missing (No source) | Missing (No source) | not_verified | ## KYC Status Analysis: Director
+
+**Overall KYC Status:** Incomplete
+
+**Discrepancy Analysis:**
+
+The reported address discrepancy between "No 38 Street 426, Phum1, Toul Tompung2, Chamkar Mon, Phnom Penh" and "APT 702, #38 STREET 426, PHNOM PENH, CAMBODIA" does *not* represent a genuine compliance issue.  Both addresses clearly refer to the same physical location, with the second address providing additional detail (apartment number) and a simplified format.  This difference is purely a matter of formatting and level of detail, not a genuine discrepancy indicating different locations.
+
+**Missing Requirements Analysis:**
+
+The "missing requirement" listed is actually the same address variation discussed above. Since this is not a genuine discrepancy, there are no missing requirements based on the provided information.  However, standard KYC procedures for a Director typically require the following documentation, which should be verified as present:
+
+* **Proof of Identity:**  A government-issued photo ID, such as a passport or driver's license. This is crucial for verifying the individual's identity.
+* **Proof of Address:** A recent utility bill (e.g., water, electricity, gas), bank statement, or official government correspondence confirming the residential address. This is essential for confirming the director's declared place of residence.
+* **Director Identification Number (DIN) or equivalent:** Depending on the jurisdiction, a unique identification number issued to directors may be required. This helps in tracking and verifying the director's corporate affiliations.
+
+**Conclusion:**
+
+While the provided data does not indicate any genuine discrepancies, the KYC process is incomplete.  To achieve complete KYC compliance, the aforementioned standard documentation (Proof of Identity, Proof of Address, and potentially a DIN or equivalent) must be submitted and verified.  Once these documents are provided, a thorough review should be conducted to ensure they are valid, current, and consistent with any other provided information.
+ |
+Stored/updated director information for Michael Andrew Mckay
+| Monika Nowaczyk (No source) | HG066207 (MN_ID_MonikaNowaczyk_passport.txt) | Passport (MN_ID_MonikaNowaczyk_passport.txt) | CANADIAN (MN_ID_MonikaNowaczyk_passport.txt) | 104BE02,0,470,Phum1,Tuol Tumpung Ti Pir, Chamkar Mon,Phnom Penh (mn_address_statement.txt) | Missing (No source) | Missing (No source) | not_verified | ## KYC Status Analysis: Director
+
+**Overall Status:** Incomplete - Requires Review
+
+**Discrepancy Analysis:**
+
+The reported address discrepancy between "104BE02,0,470,Phum1,Tuol Tumpung Ti Pir, Chamkar Mon,Phnom Penh" and "HOUSE 104BE02 STREET 470, PHNOM PENH, CAMBODIA" does *not* represent a genuine compliance issue.  Both addresses clearly point to the same physical location, with the first providing a more granular breakdown of the address components (including Phum, Sangkat, and Khan) while the second uses a simplified format. This difference in formatting is common and should not trigger a KYC flag.
+
+**Missing Requirements Analysis:**
+
+The "Missing Requirements" section erroneously lists the address formatting difference as a missing requirement. This is incorrect.  There is no missing document related to the address itself, only a difference in presentation.  However, the provided data lacks information on what documents were actually submitted.  Therefore, we cannot definitively determine if any documents are truly missing.
+
+To complete KYC verification for a Director, the following documents are typically required (this list may vary based on specific regulatory requirements and internal policies):
+
+* **Proof of Identity:**  A government-issued photo ID, such as a passport, national identity card, or driver's license. This is crucial for verifying the director's identity.
+* **Proof of Address:** A recent utility bill (e.g., water, electricity, gas), bank statement, or official government correspondence confirming the director's residential address. This is essential for confirming the director's location and preventing fraud.
+* **Director's Identification Number (DIN) or equivalent:**  Depending on the jurisdiction, a unique identification number issued to directors may be required.
+* **Declaration of Directorship:** A signed document confirming the individual's directorship role within the company.
+
+**Recommended Action:**
+
+1. **Remove the false positive address discrepancy:** The system should be adjusted to recognize formatting variations in addresses and not flag them as discrepancies.
+2. **Verify submitted documents:** Review the submitted documentation to determine which of the standard required documents (listed above) are actually missing.
+3. **Request missing documents:**  If any required documents are indeed missing, promptly request them from the director. Prioritize obtaining Proof of Identity and Proof of Address.
+4. **Re-evaluate KYC status:** Once all required documents are received and verified, re-evaluate the KYC status.
+
+
+By addressing these points, the KYC process can be completed accurately and efficiently, ensuring compliance while avoiding unnecessary delays caused by false positive discrepancies.
+ |
+Stored/updated director information for Monika Nowaczyk
+| Tham Chee Chung (No source) | S7247859B (chee_chung_idNRIC.txt) | NRIC (chee_chung_idNRIC.txt) | SINGAPORE (chee_chung_idNRIC.txt) | APT BLK 747C BEDOK RESERVOIR CRESCENT #11-31 BELVIA DBSS SINGAPORE 473747 (Chee_chung_address.txt) | Missing (No source) | Missing (No source) | not_verified | ## KYC Status Analysis: Director
+
+**Overall KYC Status:** Pending - Address Verification Required
+
+**Discrepancy Analysis:**
+
+The reported address discrepancies are NOT genuine compliance issues. All three versions point to the same physical address, with variations only in formatting and completeness:
+
+* **APT BLK 747C BEDOK RESERVOIR CRESCENT #11-31 BELVIA DBSS SINGAPORE 473747:** This version provides the most complete address details, including the apartment block, street name, unit number, building name (BELVIA), and postal code.  The inclusion of "DBSS" (Design, Build and Sell Scheme) is descriptive but not essential for locating the address.
+* **APT BLK 747C BEDOK RESERVOIR RD SINGAPORE 473747:** This version likely uses "RD" (Road) instead of "CRESCENT," a common abbreviation or data entry error. It omits the building name "BELVIA" but remains sufficient for locating the address.
+* **747C BEDOK RESERVOIR CRESCENT #11-31 BELVIA SINGAPORE (473747):** This version omits "APT BLK" but includes the essential address components. The parentheses around the postal code are a stylistic variation.
+
+**Conclusion:**  These are not genuine discrepancies and do not indicate a compliance issue.  The variations are minor formatting differences that do not affect the identification of the address.
+
+**Missing Requirements Analysis:**
+
+While not listed as "missing" in the prompt's "Missing Requirements" section, a crucial piece of information for KYC compliance is missing: **Proof of Address documentation.**  To complete the KYC verification, the director must provide an official document verifying the provided address.  Acceptable documents typically include:
+
+* **Utility bill (e.g., water, electricity, gas):** Issued within the last 3-6 months and clearly displaying the director's name and the residential address. This is a primary document for address verification.
+* **Bank statement:**  A recent statement (within the last 3-6 months) showing the director's name and the residential address as registered with the bank.
+* **Official government-issued correspondence:**  Documents like tax assessments or official letters bearing the director's name and residential address.
+
+**Prioritization:**  Obtaining a utility bill or bank statement is the highest priority for completing the address verification.
+
+**Next Steps:**
+
+1. Request the director to provide a valid proof of address document (utility bill, bank statement, or government correspondence).
+2. Upon receipt, verify that the name and address on the document match the information provided and are consistent across all sources.
+3. Once the address is verified with supporting documentation, the KYC status can be updated to "Approved."
+
+
+This detailed analysis clarifies the address discrepancies as non-issues and highlights the need for proof of address documentation to complete the KYC process. This approach ensures accurate compliance assessment while avoiding unnecessary delays due to minor formatting variations.
+ |
+Stored/updated director information for Tham Chee Chung
+
+Company Verification Status: pending
+
+=== End of Processing ===
+
+
+=== Processing shareholders for company: BEEBEE+BONGO PTE. LTD. ===
+
+SHAREHOLDERS TABLE
+==================
+| Name (Source) | Shares Owned (Source) | Price per Share (Source) | ID No. (Source) | ID Type (Source) | Nationality (Source) | Address (Source) | Tel. No. (Source) | Email Address (Source) | Verification Status | KYC Status |
+|--------------|------------------------|-------------------------|-----------------|------------------|---------------------|-----------------|------------------|---------------------|-------------------|-------------|
+Shareholders: [ 'Michael Andrew Mckay (30%)', 'Monika Nowaczyk (70%)' ]
+Stored/updated individual shareholder information for Michael Andrew Mckay
+| Michael Andrew Mckay | 30% (Declaration) | Missing (No source) | AJ855933 (MM_ID_MichealMcKay_passport.txt) | Passport (MM_ID_MichealMcKay_passport.txt) | CANADIAN (MM_ID_MichealMcKay_passport.txt) | No 38 Street 426,Phum1,Toul Tompung2, Chamkar Mon,Phnom Penh (MM_address_statement.txt) | Missing (No source) | Missing (No source) | not_verified | ## KYC Status Analysis
+
+**Entity Type:** Individual Shareholder
+
+**Overall KYC Status:** Incomplete
+... |
+Stored/updated individual shareholder information for Monika Nowaczyk
+| Monika Nowaczyk | 70% (Declaration) | Missing (No source) | HG066207 (MN_ID_MonikaNowaczyk_passport.txt) | Passport (MN_ID_MonikaNowaczyk_passport.txt) | CANADIAN (MN_ID_MonikaNowaczyk_passport.txt) | 104BE02,0,470,Phum1,Tuol Tumpung Ti Pir, Chamkar Mon,Phnom Penh (mn_address_statement.txt) | Missing (No source) | Missing (No source) | not_verified | ## KYC Status Analysis
+
+**Entity Type:** Individual Shareholder
+
+**Overall KYC Status:** Incomplete
+... |
+
+Company Shareholder KYC Status: pending
+
+=== End of Shareholder Processing ===
+
+Stored new company: Singapore Telecommunications Limited
+
+=== Processing directors for company: Singapore Telecommunications Limited ===
+
+COMPANY DETAILS TABLE
+===================
+a. Intended Company Name: Singapore Telecommunications Limited
+b. Alternative Company Name 1: N/A
+c. Alternative Company Name 2: N/A
+d. Company Activities: Unknown
+e. Intended Registered Address: BRAS BASAH POST OFFICE PO BOX 294 SINGAPORE 911810
+No directors found for this company
+
+
+=== Processing shareholders for company: Singapore Telecommunications Limited ===
+
+SHAREHOLDERS TABLE
+==================
+| Name (Source) | Shares Owned (Source) | Price per Share (Source) | ID No. (Source) | ID Type (Source) | Nationality (Source) | Address (Source) | Tel. No. (Source) | Email Address (Source) | Verification Status | KYC Status |
+|--------------|------------------------|-------------------------|-----------------|------------------|---------------------|-----------------|------------------|---------------------|-------------------|-------------|
+Shareholders: []
+
+Company Shareholder KYC Status: verified
+
+=== End of Shareholder Processing ===
+
+Unhandled Rejection at: Promise {
+  <rejected> TypeError [ERR_INVALID_STATE]: Invalid state: Controller is already closed
+      at ReadableStreamDefaultController.enqueue (node:internal/webstreams/readablestream:1051:13)
+      at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/.mastra/output/index.mjs:12959:22
+      at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:3331:16
+      at Set.forEach (<anonymous>)
+      at Machine.stateUpdateHandler (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:3330:32)
+      at Machine.emit (node:events:519:28)
+      at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:2203:14
+      at Actor.update (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:636:28)
+      at Actor._process (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:880:10)
+      at Mailbox.flush (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:45:12) {
+    code: 'ERR_INVALID_STATE'
+  },
+  [Symbol(async_id_symbol)]: 11159,
+  [Symbol(trigger_async_id_symbol)]: 11157,
+  [Symbol(kResourceStore)]: BaseContext {
+    _currentContext: Map(3) {
+      Symbol(OpenTelemetry Context Key SPAN) => [Span],
+      Symbol(OpenTelemetry SDK Context Key RPC_METADATA) => [Object],
+      Symbol(OpenTelemetry Baggage Key) => [Object]
+    },
+    getValue: [Function (anonymous)],
+    setValue: [Function (anonymous)],
+    deleteValue: [Function (anonymous)]
+  }
+} reason: TypeError [ERR_INVALID_STATE]: Invalid state: Controller is already closed
+    at ReadableStreamDefaultController.enqueue (node:internal/webstreams/readablestream:1051:13)
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/.mastra/output/index.mjs:12959:22
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:3331:16
+    at Set.forEach (<anonymous>)
+    at Machine.stateUpdateHandler (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:3330:32)
+    at Machine.emit (node:events:519:28)
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:2203:14
+    at Actor.update (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:636:28)
+    at Actor._process (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:880:10)
+    at Mailbox.flush (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:45:12) {
+  code: 'ERR_INVALID_STATE'
+}
+Unhandled Rejection at: Promise {
+  <rejected> TypeError [ERR_INVALID_STATE]: Invalid state: Controller is already closed
+      at ReadableStreamDefaultController.enqueue (node:internal/webstreams/readablestream:1051:13)
+      at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/.mastra/output/index.mjs:12959:22
+      at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:3331:16
+      at Set.forEach (<anonymous>)
+      at Machine.stateUpdateHandler (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:3330:32)
+      at Machine.emit (node:events:519:28)
+      at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:2203:14
+      at Actor.update (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:636:28)
+      at Actor._process (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:880:10)
+      at Mailbox.flush (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:45:12) {
+    code: 'ERR_INVALID_STATE'
+  },
+  [Symbol(async_id_symbol)]: 11159,
+  [Symbol(trigger_async_id_symbol)]: 11157,
+  [Symbol(kResourceStore)]: BaseContext {
+    _currentContext: Map(3) {
+      Symbol(OpenTelemetry Context Key SPAN) => [Span],
+      Symbol(OpenTelemetry SDK Context Key RPC_METADATA) => [Object],
+      Symbol(OpenTelemetry Baggage Key) => [Object]
+    },
+    getValue: [Function (anonymous)],
+    setValue: [Function (anonymous)],
+    deleteValue: [Function (anonymous)]
+  }
+} reason: TypeError [ERR_INVALID_STATE]: Invalid state: Controller is already closed
+    at ReadableStreamDefaultController.enqueue (node:internal/webstreams/readablestream:1051:13)
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/.mastra/output/index.mjs:12959:22
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:3331:16
+    at Set.forEach (<anonymous>)
+    at Machine.stateUpdateHandler (file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:3330:32)
+    at Machine.emit (node:events:519:28)
+    at file:///home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/@mastra/core/dist/chunk-3DJ53HTG.js:2203:14
+    at Actor.update (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:636:28)
+    at Actor._process (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:880:10)
+    at Mailbox.flush (/home/garvit/Desktop/personal_projects/KYC_Agent/KYC_Verifier/node_modules/xstate/dist/raise-60cebf03.cjs.js:45:12) {
+  code: 'ERR_INVALID_STATE'
+}
+Unhandeled rejection
