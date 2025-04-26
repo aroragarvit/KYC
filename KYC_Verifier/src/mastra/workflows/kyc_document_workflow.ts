@@ -906,9 +906,36 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
       `http://localhost:3000/kyc/individuals?client_id=${company.client_id}` :
       'http://localhost:3000/kyc/individuals');
     const allIndividuals = response.data.individuals || [];
+
+    // Get existing directors to check for duplicates
+    const existingDirectorsResponse = await axios.get(company.client_id ?
+      `http://localhost:3000/kyc/directors?company=${encodeURIComponent(company.company_name)}&client_id=${company.client_id}` :
+      `http://localhost:3000/kyc/directors?company=${encodeURIComponent(company.company_name)}`);
+    const existingDirectors = existingDirectorsResponse.data.directors || [];
     
     for (const directorName of directorNames) {
-      const director = allIndividuals.find((ind: any) => ind.full_name === directorName);
+      // Check if director already exists in the company's directors
+      const existingDirector = existingDirectors.find((dir: any) => 
+        dir.director_name.trim().toLowerCase() === directorName.trim().toLowerCase());
+      
+      if (existingDirector) {
+        console.log(`Director already exists: ${directorName} - Skipping to avoid duplicate`);
+        continue;
+      }
+      
+      // First try to find by exact full_name match (case insensitive)
+      let director = allIndividuals.find((ind: any) => 
+        ind.full_name.trim().toLowerCase() === directorName.trim().toLowerCase());
+      
+      // If not found, check alternative_names for a match
+      if (!director) {
+        director = allIndividuals.find((ind: any) => 
+          ind.alternative_names && 
+          Array.isArray(ind.alternative_names) && 
+          ind.alternative_names.some((altName: string) => 
+            altName.trim().toLowerCase() === directorName.trim().toLowerCase())
+        );
+      }
       
       if (!director) {
         // Log missing director information
@@ -1089,7 +1116,20 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
         sharePctStr = shareMatch[2].trim();
       }
       let isIndividual = false;
-      const individual = allIndividuals.find((ind: any) => ind.full_name.trim().toLowerCase() === parsedName.toLowerCase());
+      // First try to find by exact full_name match (case insensitive)
+      let individual = allIndividuals.find((ind: any) => 
+        ind.full_name.trim().toLowerCase() === parsedName.trim().toLowerCase());
+      
+      // If not found, check alternative_names for a match
+      if (!individual) {
+        individual = allIndividuals.find((ind: any) => 
+          ind.alternative_names && 
+          Array.isArray(ind.alternative_names) && 
+          ind.alternative_names.some((altName: string) => 
+            altName.trim().toLowerCase() === parsedName.trim().toLowerCase())
+        );
+      }
+      
       if (individual) isIndividual = true;
       let idInfo, idTypeInfo, nationalityInfo, addressInfo, phoneInfo, emailInfo, sharesInfo, priceInfo;
       let verificationStatus = "verified";
@@ -1134,8 +1174,8 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
             }) 
           };
         const isLocal = nationalityInfo.value?.toLowerCase().includes('singapore');
-        const hasNRIC = checkDocumentTypeExists(individual.id_numbers, ['nric']);
-        const hasPassport = checkDocumentTypeExists(individual.id_numbers, ['passport']);
+        const hasNRIC = checkDocumentTypeExists(individual.id_numbers, ['identity_document']);
+        const hasPassport = checkDocumentTypeExists(individual.id_numbers, ['identity_document']);
         const hasAddrProof = checkDocumentTypeExists(individual.addresses, ['proof_of_address']);
         
         if (individual.discrepancies?.length) {
@@ -1183,7 +1223,20 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
         
       } else {
         // Process corporate shareholder
-        const compEnt = allCompanies.find((c: any) => c.company_name.trim().toLowerCase() === parsedName.toLowerCase());
+        // First try to find by exact company_name match (case insensitive)
+        let compEnt = allCompanies.find((c: any) => 
+          c.company_name.trim().toLowerCase() === parsedName.trim().toLowerCase());
+        
+        // If not found, check alternative_names for a match
+        if (!compEnt) {
+          compEnt = allCompanies.find((c: any) => 
+            c.alternative_names && 
+            Array.isArray(c.alternative_names) && 
+            c.alternative_names.some((altName: string) => 
+              altName.trim().toLowerCase() === parsedName.trim().toLowerCase())
+          );
+        }
+        
         if (!compEnt) {
           console.log(`| ${parsedName} (Unknown) | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | Unknown | pending | Missing info |`);
           overallStatus = "pending";

@@ -946,8 +946,7 @@ async function kycRoutes(fastify, options) {
             email_address = ?,
             email_address_source = ?,
             verification_status = ?,
-            kyc_status = ?,
-            updated_at = CURRENT_TIMESTAMP
+            kyc_status = ?
           WHERE company_name = ? AND director_name = ? AND client_id = ?
         `);
 
@@ -1076,8 +1075,7 @@ async function kycRoutes(fastify, options) {
           tel_number = ?,
           email_address = ?,
           verification_status = ?,
-          kyc_status = ?,
-          updated_at = CURRENT_TIMESTAMP
+          kyc_status = ?
         WHERE company_name = ? AND director_name = ? AND client_id = ?
       `);
 
@@ -1457,7 +1455,7 @@ async function kycRoutes(fastify, options) {
             tel_number, tel_number_source,
             email_address, email_address_source,
             verification_status, kyc_status, is_company
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         insertStmt.run(
@@ -1547,8 +1545,7 @@ async function kycRoutes(fastify, options) {
           email_address = ?,
           verification_status = ?,
           kyc_status = ?,
-          is_company = ?,
-          updated_at = CURRENT_TIMESTAMP
+          is_company = ?
         WHERE company_name = ? AND shareholder_name = ? AND client_id = ?
       `);
 
@@ -1753,7 +1750,7 @@ async function kycRoutes(fastify, options) {
 
       // Update client
       fastify.kycDb
-        .prepare("UPDATE clients SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        .prepare("UPDATE clients SET name = ? WHERE id = ?")
         .run(name, id);
 
       return {
@@ -1882,7 +1879,7 @@ async function kycRoutes(fastify, options) {
       const insertStmt = fastify.kycDb.prepare(`
         INSERT INTO document_sources (
           client_id, document_name, document_type, file_path, extraction_date
-        ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ) VALUES (?, ?, ?, ?, NULL)
         RETURNING id
       `);
       

@@ -20,9 +20,7 @@ function initializeKycDatabase() {
     db.exec(`
       CREATE TABLE IF NOT EXISTS clients (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        name TEXT NOT NULL UNIQUE
       );
     `);
 
@@ -43,7 +41,6 @@ function initializeKycDatabase() {
         shares_owned TEXT, /* JSON object with company and share info */
         price_per_share TEXT, /* JSON object with values and sources */
         discrepancies TEXT, /* JSON array of discrepancies */
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients(id)
       );
     `);
@@ -63,7 +60,6 @@ function initializeKycDatabase() {
         shares_issued TEXT, /* JSON object with values and sources */
         price_per_share TEXT, /* JSON object with values and sources */
         discrepancies TEXT, /* JSON array of discrepancies */
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients(id)
       );
     `);
@@ -77,7 +73,7 @@ function initializeKycDatabase() {
         document_type TEXT, /* Will be determined by AI analysis */
         file_path TEXT,
         content TEXT,
-        extraction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        extraction_date TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients(id)
       );
     `);
@@ -103,8 +99,6 @@ function initializeKycDatabase() {
         email_address_source TEXT, /* JSON with document id, name, type */
         verification_status TEXT DEFAULT 'pending',
         kyc_status TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients(id),
         UNIQUE(client_id, company_name, director_name)
       );
@@ -136,8 +130,6 @@ function initializeKycDatabase() {
         verification_status TEXT DEFAULT 'pending',
         kyc_status TEXT,
         is_company INTEGER DEFAULT 0, /* 0 for individual, 1 for company */
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients(id),
         UNIQUE(client_id, company_name, shareholder_name)
       );
@@ -149,7 +141,6 @@ function initializeKycDatabase() {
         client_id INTEGER NOT NULL,
         message TEXT NOT NULL,
         message_type TEXT NOT NULL CHECK(message_type IN ('agent', 'user')),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients(id)
       );
     `);
@@ -194,7 +185,7 @@ function initializeKycDatabase() {
     
     // Insert document sources statement
     const insertDocument = db.prepare(
-      "INSERT INTO document_sources (client_id, document_name, document_type, file_path) VALUES (?, ?, NULL, ?) RETURNING id"
+      "INSERT INTO document_sources (client_id, document_name, document_type, file_path, extraction_date) VALUES (?, ?, NULL, ?, NULL) RETURNING id"
     );
 
     let clientsAdded = 0;
