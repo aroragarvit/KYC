@@ -102,35 +102,28 @@ interface Director {
 // Shareholder interface
 interface Shareholder {
   id: number;
-  company_id?: number;
-  shareholder_type?: 'Individual' | 'Corporate';
-  full_name?: string | null;
-  company_name?: string | null;
+  client_id?: number;
+  company_name?: string;
+  shareholder_name?: string;
+  shares_owned?: string;
+  shares_owned_source?: string;
+  price_per_share?: string | null;
+  price_per_share_source?: string;
   id_number?: string | null;
+  id_number_source?: string;
   id_type?: string | null;
+  id_type_source?: string;
   nationality?: string | null;
-  residential_address?: string | null;
-  registered_address?: string | null;
-  registration_number?: string | null;
-  telephone_number?: string | null;
+  nationality_source?: string;
+  address?: string | null;
+  address_source?: string;
+  tel_number?: string | null;
+  tel_number_source?: string;
   email_address?: string | null;
-  number_of_shares?: number | null;
-  price_per_share?: number | null;
-  percentage_ownership?: number | null;
-  discrepancies?: string | null;
-  verification_Status?: string | null;
-  // Source fields
-  full_name_source?: string | null;
-  id_number_source?: string | null;
-  id_type_source?: string | null;
-  nationality_source?: string | null;
-  residential_address_source?: string | null;
-  registered_address_source?: string | null;
-  registration_number_source?: string | null;
-  telephone_number_source?: string | null;
-  email_address_source?: string | null;
-  number_of_shares_source?: string | null;
-  price_per_share_source?: string | null;
+  email_address_source?: string;
+  verification_status?: string | null;
+  kyc_status?: string | null;
+  is_company?: number;
 }
 
 // Document interface
@@ -355,7 +348,8 @@ export default function CompanyDetails() {
     queryKey: ['company-documents', companyId],
     queryFn: async () => {
       try {
-        const response = await fetch(`${API_URL}/kyc/companies/${companyId}/documents`);
+        // Updated to use client_id as a query parameter
+        const response = await fetch(`${API_URL}/kyc/documents?client_id=${companyId}`);
         if (!response.ok) {
           throw new Error(`API error: ${response.status}`);
         }
@@ -866,123 +860,220 @@ export default function CompanyDetails() {
                         <div className="text-center p-4">No shareholders found for this company.</div>
                       ) : (
                         <div className="space-y-6">
-                          {shareholders.map((shareholder: Shareholder, idx: number) => (
-                            <div
-                              key={idx}
-                              className="border rounded-lg p-4"
-                            >
-                              <div className="flex justify-between items-start">
-                                <h3 className="text-lg font-semibold mb-2">
-                                  {shareholder.full_name || shareholder.company_name}
-                                  {shareholder.verification_Status && (
-                                    <Badge
-                                      variant={getBadgeVariant(shareholder.verification_Status)}
-                                      className="ml-2"
-                                    >
-                                      {shareholder.verification_Status}
-                                    </Badge>
-                                  )}
-                                </h3>
-                                <Badge>{shareholder.shareholder_type === 'Corporate' ? 'Company' : 'Individual'}</Badge>
+                          {shareholders.map((shareholder: Shareholder, idx: number) => {
+                            const idNumberSource = getDirectorDocumentSource(shareholder.id_number_source);
+                            const idTypeSource = getDirectorDocumentSource(shareholder.id_type_source);
+                            const nationalitySource = getDirectorDocumentSource(shareholder.nationality_source);
+                            const addressSource = getDirectorDocumentSource(shareholder.address_source);
+                            const telSource = getDirectorDocumentSource(shareholder.tel_number_source);
+                            const emailSource = getDirectorDocumentSource(shareholder.email_address_source);
+                            const sharesOwnedSource = getDirectorDocumentSource(shareholder.shares_owned_source);
+                            const ppsSource = getDirectorDocumentSource(shareholder.price_per_share_source);
+                            
+                            // Safely handle kyc_status to avoid type errors
+                            let shareholderKycStatus: string | null = null;
+                            if (typeof shareholder.kyc_status === 'string') {
+                              shareholderKycStatus = shareholder.kyc_status;
+                            }
+                            const missingItems = extractMissingInfo(shareholderKycStatus);
+                            
+                            return (
+                              <div
+                                key={idx}
+                                className="bg-background/95 dark:bg-background rounded-lg p-8 border border-border/50"
+                              >
+                                <div className="flex justify-between items-center mb-6">
+                                  <h3 className="text-xl font-semibold">
+                                    {shareholder.shareholder_name}
+                                  </h3>
+                                  <Badge 
+                                    variant={getBadgeVariant(shareholder.verification_status || "pending")}
+                                    className="text-xs px-3 py-1 font-medium"
+                                  >
+                                    {shareholder.verification_status || "pending"}
+                                  </Badge>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground">Ownership</div>
+                                    <div className="mt-1">{shareholder.shares_owned || 'Not provided'}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Document Sources:
+                                      {sharesOwnedSource && sharesOwnedSource.source ? (
+                                        <span className="text-xs text-muted-foreground ml-2">{sharesOwnedSource.source}</span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground">Price Per Share</div>
+                                    <div className="mt-1">{shareholder.price_per_share || 'Not provided'}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Document Sources:
+                                      {ppsSource && ppsSource.source ? (
+                                        <span className="text-xs text-muted-foreground ml-2">{ppsSource.source}</span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground">ID Number</div>
+                                    <div className="mt-1">{shareholder.id_number || 'Not provided'}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Document Sources:
+                                      {idNumberSource && idNumberSource.documentName && (
+                                        <Badge variant="outline" className="ml-2 text-xs">
+                                          {idNumberSource.documentName}
+                                          {idNumberSource.documentType ? ` (${idNumberSource.documentType})` : ''}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground">ID Type</div>
+                                    <div className="mt-1">{shareholder.id_type || 'Not provided'}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Document Sources:
+                                      {idTypeSource && idTypeSource.documentName && (
+                                        <Badge variant="outline" className="ml-2 text-xs">
+                                          {idTypeSource.documentName}
+                                          {idTypeSource.documentType ? ` (${idTypeSource.documentType})` : ''}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground">Nationality</div>
+                                    <div className="mt-1">{shareholder.nationality || 'Not provided'}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Document Sources:
+                                      {nationalitySource && nationalitySource.documentName && (
+                                        <Badge variant="outline" className="ml-2 text-xs">
+                                          {nationalitySource.documentName}
+                                          {nationalitySource.documentType ? ` (${nationalitySource.documentType})` : ''}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground">Email</div>
+                                    <div className="mt-1">{shareholder.email_address || 'Not provided'}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Document Sources:
+                                      {emailSource && emailSource.documentName ? (
+                                        <Badge variant="outline" className="ml-2 text-xs">
+                                          {emailSource.documentName}
+                                          {emailSource.documentType ? ` (${emailSource.documentType})` : ''}
+                                        </Badge>
+                                      ) : emailSource && emailSource.source ? (
+                                        <span className="text-xs text-muted-foreground ml-2">{emailSource.source}</span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+
+                                  <div className="col-span-1 md:col-span-2">
+                                    <div className="text-sm font-medium text-muted-foreground">Address</div>
+                                    <div className="mt-1">{shareholder.address || 'Not provided'}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Document Sources:
+                                      {addressSource && addressSource.documentName && (
+                                        <Badge variant="outline" className="ml-2 text-xs">
+                                          {addressSource.documentName}
+                                          {addressSource.documentType ? ` (${addressSource.documentType})` : ''}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground">Phone</div>
+                                    <div className="mt-1">{shareholder.tel_number || 'Not provided'}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Document Sources:
+                                      {telSource && telSource.documentName ? (
+                                        <Badge variant="outline" className="ml-2 text-xs">
+                                          {telSource.documentName}
+                                          {telSource.documentType ? ` (${telSource.documentType})` : ''}
+                                        </Badge>
+                                      ) : telSource && telSource.source ? (
+                                        <span className="text-xs text-muted-foreground ml-2">{telSource.source}</span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {shareholder.kyc_status && (
+                                  <div className="mt-6">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-info">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="12" y1="16" x2="12" y2="12" />
+                                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                                      </svg>
+                                      <h4 className="font-medium">KYC Status Information</h4>
+                                    </div>
+                                    <div className="p-4 bg-muted/50 rounded-md text-sm">
+                                      <ReactMarkdown 
+                                        components={{
+                                          p: ({ node, ...props }) => (
+                                            <p className="text-muted-foreground mb-4" {...props} />
+                                          ),
+                                          h2: ({ node, ...props }) => (
+                                            <h2 className="text-base font-bold my-3" {...props} />
+                                          ),
+                                          h3: ({ node, ...props }) => (
+                                            <h3 className="text-sm font-bold my-2" {...props} />
+                                          ),
+                                          ul: ({ node, ...props }) => (
+                                            <ul className="list-disc pl-5 my-2" {...props} />
+                                          ),
+                                          li: ({ node, ...props }) => (
+                                            <li className="text-muted-foreground mb-1" {...props} />
+                                          ),
+                                          strong: ({ node, ...props }) => (
+                                            <strong className="font-bold" {...props} />
+                                          )
+                                        }}
+                                        remarkPlugins={[remarkGfm]}
+                                      >
+                                        {shareholder.kyc_status}
+                                      </ReactMarkdown>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {(missingItems.length > 0 || !shareholder.tel_number || !shareholder.email_address) && (
+                                  <div className="mt-6">
+                                    <div className="flex items-center gap-2 text-destructive mb-2">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-alert-circle">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="12" y1="8" x2="12" y2="12" />
+                                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                                      </svg>
+                                      <h4 className="font-medium">Missing Required Information</h4>
+                                    </div>
+                                    <div className="p-4 bg-destructive/5 rounded-md text-sm">
+                                      <div className="text-destructive/90">The following required fields or documents are missing:</div>
+                                      <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-muted-foreground">
+                                        {!shareholder.tel_number && <li>telephone number</li>}
+                                        {!shareholder.email_address && <li>email address</li>}
+                                        {missingItems.filter(item => 
+                                          item !== "telephone number" && 
+                                          item !== "email address"
+                                        ).map((item, idx) => (
+                                          <li key={idx}>{item}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-3">
-                                <div>
-                                  <h4 className="text-sm font-medium text-muted-foreground mb-1">
-                                    Ownership Information
-                                  </h4>
-                                  <div className="space-y-2">
-                                    <div>
-                                      <span className="font-medium">Shares Owned:</span>{' '}
-                                      {shareholder.number_of_shares || 'Not provided'}
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Source: {shareholder.number_of_shares_source || 'Unknown'}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium">Price Per Share:</span>{' '}
-                                      {shareholder.price_per_share || 'Not provided'}
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Source: {shareholder.price_per_share_source || 'Unknown'}
-                                      </div>
-                                    </div>
-                                    {shareholder.percentage_ownership && (
-                                      <div>
-                                        <span className="font-medium">Ownership Percentage:</span>{' '}
-                                        {shareholder.percentage_ownership}%
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <h4 className="text-sm font-medium text-muted-foreground mb-1">ID Information</h4>
-                                  <div className="space-y-2">
-                                    <div>
-                                      <span className="font-medium">Number:</span>{' '}
-                                      {shareholder.id_number || shareholder.registration_number || 'Not provided'}
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Source:{' '}
-                                        {shareholder.id_number_source ||
-                                          shareholder.registration_number_source ||
-                                          'Unknown'}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium">Type:</span>{' '}
-                                      {shareholder.id_type ||
-                                        (shareholder.company_name ? 'UEN' : 'Unknown') ||
-                                        'Not provided'}
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Source: {shareholder.id_type_source || 'Unknown'}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium">Nationality:</span>{' '}
-                                      {shareholder.nationality || 'Not provided'}
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Source: {shareholder.nationality_source || 'Unknown'}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <h4 className="text-sm font-medium text-muted-foreground mb-1">
-                                    Contact Information
-                                  </h4>
-                                  <div className="space-y-2">
-                                    <div>
-                                      <span className="font-medium">Address:</span>{' '}
-                                      {shareholder.residential_address ||
-                                        shareholder.registered_address ||
-                                        'Not provided'}
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Source:{' '}
-                                        {shareholder.residential_address_source ||
-                                          shareholder.registered_address_source ||
-                                          'Unknown'}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium">Phone:</span>{' '}
-                                      {shareholder.telephone_number || 'Not provided'}
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Source: {shareholder.telephone_number_source || 'Unknown'}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium">Email:</span>{' '}
-                                      {shareholder.email_address || 'Not provided'}
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Source: {shareholder.email_address_source || 'Unknown'}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </CardContent>
