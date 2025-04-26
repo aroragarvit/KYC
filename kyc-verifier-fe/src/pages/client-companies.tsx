@@ -32,8 +32,18 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 // Company interface with KYC status
 interface Company {
   id: number;
-  name: string;
+  client_id: number;
+  company_name: string;
   kyc_status: "pending" | "approved" | "not_verified" | null;
+  registration_number: any;
+  jurisdiction: any;
+  address: any;
+  directors: string[];
+  shareholders: string[];
+  company_activities?: any;
+  shares_issued?: any;
+  price_per_share?: any;
+  discrepancies: any[];
 }
 
 // Interface for the client
@@ -59,39 +69,15 @@ export default function ClientCompanies() {
     queryKey: ['client-companies', clientId],
     queryFn: async () => {
       try {
-        // Fetch all companies from the API since there's no client-specific endpoint
-        const response = await fetch(`${API_URL}/kyc/companies`);
+        // Fetch companies for the specific client using client_id query parameter
+        const response = await fetch(`${API_URL}/kyc/companies?client_id=${clientId}`);
         if (!response.ok) {
           throw new Error(`API error: ${response.status}`);
         }
         const data = await response.json();
         
-        // Process the companies data to ensure proper display
-        const processedCompanies = data.companies.map((company: any) => ({
-          id: company.id,
-          name: company.company_name || company.name || '',
-          kyc_status: company.kyc_status,
-          registration_number: typeof company.registration_number === 'string'
-            ? JSON.parse(company.registration_number || '{}')
-            : company.registration_number,
-          jurisdiction: typeof company.jurisdiction === 'string'
-            ? JSON.parse(company.jurisdiction || '{}')
-            : company.jurisdiction,
-          address: typeof company.address === 'string'
-            ? JSON.parse(company.address || '{}')
-            : company.address,
-          directors: Array.isArray(company.directors)
-            ? company.directors
-            : (typeof company.directors === 'string' && company.directors.trim() ? JSON.parse(company.directors) : []),
-          shareholders: Array.isArray(company.shareholders)
-            ? company.shareholders
-            : (typeof company.shareholders === 'string' && company.shareholders.trim() ? JSON.parse(company.shareholders) : []),
-          discrepancies: typeof company.discrepancies === 'string'
-            ? JSON.parse(company.discrepancies || '[]')
-            : (company.discrepancies || []),
-        }));
-        
-        return { companies: processedCompanies };
+        // The backend now returns properly structured data
+        return data;
       } catch (error) {
         console.error('Failed to fetch companies:', error);
         throw error;
@@ -104,7 +90,7 @@ export default function ClientCompanies() {
   const filteredCompanies = useMemo(() => {
     if (!data?.companies) return [];
     return data.companies.filter((company: Company) => 
-      (company.name ?? '').toLowerCase().includes(searchTerm.toLowerCase())
+      (company.company_name ?? '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [data, searchTerm]);
 
@@ -223,9 +209,9 @@ export default function ClientCompanies() {
                       filteredCompanies.map((company: Company) => (
                         <TableRow key={company.id}>
                           <TableCell className="font-medium">{company.id}</TableCell>
-                          <TableCell>{company.name}</TableCell>
+                          <TableCell>{company.company_name}</TableCell>
                           <TableCell>
-                            <StatusBadge status={company.kyc_status} />
+                            <StatusBadge status="pending" />
                           </TableCell>
                           <TableCell className="text-right">
                             <Button

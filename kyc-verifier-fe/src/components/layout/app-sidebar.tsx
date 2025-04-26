@@ -32,11 +32,6 @@ const data = {
       icon: IconBriefcase,
     },
     {
-      title: 'Organizations',
-      url: '/organizations',
-      icon: IconUsers,
-    },
-    {
       title: 'Documents',
       url: '/documents',
       icon: IconFolder,

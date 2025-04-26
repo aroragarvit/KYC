@@ -7,10 +7,8 @@ import { Toaster } from 'sonner';
 
 // Original pages
 import Dashboard from './pages/dashboard.tsx';
-import Organizations from './pages/organizations.tsx';
 import Documents from './pages/documents.tsx';
 import Analytics from './pages/analytics.tsx';
-import OrganisationDetails from './pages/organisation-details';
 
 // New pages for clients section
 import Clients from './pages/clients';
@@ -35,14 +33,6 @@ createRoot(document.getElementById('root')!).render(
               element={<Dashboard />}
             />
             {/* Original routes */}
-            <Route
-              path="/organizations"
-              element={<Organizations />}
-            />
-            <Route
-              path="/organization/:id"
-              element={<OrganisationDetails />}
-            />
             <Route
               path="/documents"
               element={<Documents />}

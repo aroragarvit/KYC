@@ -129,11 +129,11 @@ interface Shareholder {
 // Document interface
 interface Document {
   id: number;
-  file_name: string;
-  file_type?: string;
-  document_category?: string;
-  uploaded_at?: string;
-  file_path?: string;
+  document_name: string;
+  document_type: string;
+  file_path: string;
+  extraction_date: string | null;
+  client_id: number;
 }
 
 // Helper function to parse source fields that might be JSON strings
@@ -363,7 +363,7 @@ export default function CompanyDetails() {
   });
 
   // Helper function for badge variant
-  const getBadgeVariant = (status: string | null): 'default' | 'secondary' | 'destructive' => {
+  const getBadgeVariant = (status: string | null | undefined): 'default' | 'secondary' | 'destructive' => {
     if (!status) return 'default';
     switch (status.toLowerCase()) {
       case 'verified':
@@ -999,8 +999,8 @@ export default function CompanyDetails() {
                                           {telSource.documentName}
                                           {telSource.documentType ? ` (${telSource.documentType})` : ''}
                                         </Badge>
-                                      ) : telSource && telSource.source ? (
-                                        <span className="text-xs text-muted-foreground ml-2">{telSource.source}</span>
+                                      ) : telSource && telSource.source === "No source" ? (
+                                        <span className="text-xs text-muted-foreground ml-2">No source</span>
                                       ) : null}
                                     </div>
                                   </div>
@@ -1096,7 +1096,7 @@ export default function CompanyDetails() {
                         <div className="text-center p-4 text-destructive">
                           Error loading documents: {(documentsError as Error).message}
                         </div>
-                      ) : !documents || documents.length === 0 ? (
+                      ) : !documentsData?.documents || documentsData.documents.length === 0 ? (
                         <div className="text-center p-4">No documents found for this company.</div>
                       ) : (
                         <Table>
@@ -1109,23 +1109,25 @@ export default function CompanyDetails() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {documents.map((doc: Document) => (
+                            {documentsData.documents.map((doc: Document) => (
                               <TableRow key={doc.id}>
                                 <TableCell className="font-medium">
                                   <div className="flex items-center">
                                     <FileText className="h-4 w-4 mr-2" />
-                                    {doc.file_name}
+                                    {doc.document_name}
                                   </div>
                                 </TableCell>
-                                <TableCell>{doc.file_type || 'Unknown'}</TableCell>
                                 <TableCell>
-                                  {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : 'Unknown'}
+                                  <Badge variant="outline">{doc.document_type}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {doc.extraction_date ? new Date(doc.extraction_date).toLocaleDateString() : 'Unknown'}
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => handleDownloadDocument(doc.file_path || '', doc.file_name)}
+                                    onClick={() => handleDownloadDocument(doc.file_path, doc.document_name)}
                                   >
                                     <Download className="h-4 w-4 mr-2" />
                                     Download
