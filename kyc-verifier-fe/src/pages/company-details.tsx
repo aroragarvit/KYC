@@ -21,13 +21,58 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 // Company interface
 interface Company {
   id: number;
-  name: string;
-  company_name?: string;
-  registration_number: any;
-  jurisdiction: any;
-  address: any;
-  directors?: any[];
-  shareholders?: any[];
+  client_id?: number;
+  company_name: string;
+  registration_number: {
+    [key: string]: {
+      documentId: number;
+      documentName: string;
+      documentType: string;
+      value: string;
+    }
+  };
+  jurisdiction: {
+    [key: string]: {
+      documentId: number;
+      documentName: string;
+      documentType: string;
+      value: string;
+    }
+  };
+  address: {
+    [key: string]: {
+      documentId: number;
+      documentName: string;
+      documentType: string;
+      value: string;
+    }
+  };
+  directors?: string[];
+  shareholders?: string[];
+  company_activities?: {
+    [key: string]: {
+      documentId: number;
+      documentName: string;
+      documentType: string;
+      value: string[];
+    }
+  };
+  shares_issued?: {
+    [key: string]: {
+      documentId: number;
+      documentName: string;
+      documentType: string;
+      value: string;
+    }
+  };
+  price_per_share?: {
+    [key: string]: {
+      documentId: number;
+      documentName: string;
+      documentType: string;
+      value: string;
+    }
+  };
   kyc_status?: string | null;
   discrepancies?: any[];
 }
@@ -111,39 +156,47 @@ function parseSourceField(field: any, defaultValue: string = '{}') {
   }
 }
 
-// Helper function to extract document source information
-function getDocumentSource(sourceString: string | null) {
-  if (!sourceString) return null;
+// Helper function to get a document source value from a field with structure like registration_number
+function getDocumentValue(fieldData: any, defaultValue: string = 'Not provided'): string {
+  if (!fieldData || typeof fieldData !== 'object') return defaultValue;
   
-  try {
-    const parsed = JSON.parse(sourceString);
-    return {
-      documentId: parsed.documentId,
-      documentName: parsed.documentName,
-      documentType: parsed.documentType,
-      source: parsed.source
-    };
-  } catch (e) {
-    console.error('Error parsing document source:', e);
-    return null;
-  }
+  // Get the first key's data
+  const firstKey = Object.keys(fieldData)[0];
+  if (!firstKey) return defaultValue;
+  
+  return fieldData[firstKey]?.value || defaultValue;
+}
+
+// Helper function to get a document source from a field
+function getDocumentSource(fieldData: any): { documentName: string; documentType: string } | null {
+  if (!fieldData || typeof fieldData !== 'object') return null;
+  
+  // Get the first key's data
+  const firstKey = Object.keys(fieldData)[0];
+  if (!firstKey) return null;
+  
+  const source = fieldData[firstKey];
+  if (!source) return null;
+  
+  return {
+    documentName: source.documentName || '',
+    documentType: source.documentType || ''
+  };
 }
 
 // Helper function to extract missing information from KYC status
-function extractMissingInfo(kycStatus: string | null) {
+function extractMissingInfo(kycStatus: string | null | undefined) {
   if (!kycStatus) return [];
   
   const missingItems = [];
   
   // Look for common phrases indicating missing information
   if (kycStatus.includes("Missing Telephone Number") || 
-      kycStatus.includes("Missing telephone number") || 
       kycStatus.includes("missing telephone number")) {
     missingItems.push("telephone number");
   }
   
   if (kycStatus.includes("Missing Email Address") || 
-      kycStatus.includes("Missing email address") || 
       kycStatus.includes("missing email address")) {
     missingItems.push("email address");
   }
@@ -161,6 +214,24 @@ function extractMissingInfo(kycStatus: string | null) {
   }
   
   return missingItems;
+}
+
+// Helper function to extract document source information for directors
+function getDirectorDocumentSource(sourceString: string | null | undefined) {
+  if (!sourceString) return null;
+  
+  try {
+    const parsed = JSON.parse(sourceString);
+    return {
+      documentId: parsed.documentId,
+      documentName: parsed.documentName,
+      documentType: parsed.documentType,
+      source: parsed.source
+    };
+  } catch (e) {
+    console.error('Error parsing document source:', e);
+    return null;
+  }
 }
 
 export default function CompanyDetails() {
@@ -185,28 +256,25 @@ export default function CompanyDetails() {
         const data = await response.json();
 
         // Process the company data to ensure proper parsing of nested JSON
-        // The backend returns fields like registration_number, jurisdiction, address, directors, shareholders, discrepancies as JSON strings.
-        // Also, the company name is under company_name, not name.
         const company = data.company || data;
-        const parsedCompany = {
+        
+        // No need to parse fields - they are already structured objects
+        const parsedCompany: Company = {
           id: company.id,
-          name: company.company_name || company.name || '',
-          registration_number: parseSourceField(company.registration_number),
-          jurisdiction: parseSourceField(company.jurisdiction),
-          address: parseSourceField(company.address),
-          directors: Array.isArray(company.directors)
-            ? company.directors
-            : typeof company.directors === 'string' && company.directors.trim()
-              ? JSON.parse(company.directors)
-              : [],
-          shareholders: Array.isArray(company.shareholders)
-            ? company.shareholders
-            : typeof company.shareholders === 'string' && company.shareholders.trim()
-              ? JSON.parse(company.shareholders)
-              : [],
+          client_id: company.client_id,
+          company_name: company.company_name,
+          registration_number: company.registration_number || {},
+          jurisdiction: company.jurisdiction || {},
+          address: company.address || {},
+          directors: company.directors || [],
+          shareholders: company.shareholders || [],
+          company_activities: company.company_activities || {},
+          shares_issued: company.shares_issued || {},
+          price_per_share: company.price_per_share || {},
           kyc_status: company.kyc_status || null,
-          discrepancies: parseSourceField(company.discrepancies, '[]'),
+          discrepancies: company.discrepancies || [],
         };
+        
         return parsedCompany;
       } catch (error) {
         console.error('Error fetching company data:', error);
@@ -386,7 +454,7 @@ export default function CompanyDetails() {
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <h2 className="text-2xl font-bold tracking-tight">Company: {company.name}</h2>
+              <h2 className="text-2xl font-bold tracking-tight">Company: {company.company_name}</h2>
             </div>
 
             <motion.div
@@ -422,22 +490,26 @@ export default function CompanyDetails() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <div className="text-sm font-medium text-muted-foreground">Name</div>
-                            <div className="mt-1">{company.name}</div>
+                            <div className="mt-1">{company.company_name}</div>
                           </div>
 
                           <div>
                             <div className="text-sm font-medium text-muted-foreground">Registration Number</div>
-                            <div className="mt-1">{company.registration_number?.value || 'Not provided'}</div>
+                            <div className="mt-1">{getDocumentValue(company.registration_number)}</div>
                             <div className="text-xs text-muted-foreground mt-1">
-                              Source: {company.registration_number?.source || 'Unknown'}
+                              Source: {getDocumentSource(company.registration_number)?.documentName || 'Unknown'}
+                              {getDocumentSource(company.registration_number)?.documentType ? 
+                                ` (${getDocumentSource(company.registration_number)?.documentType})` : ''}
                             </div>
                           </div>
 
                           <div>
                             <div className="text-sm font-medium text-muted-foreground">Jurisdiction</div>
-                            <div className="mt-1">{company.jurisdiction?.value || 'Not provided'}</div>
+                            <div className="mt-1">{getDocumentValue(company.jurisdiction)}</div>
                             <div className="text-xs text-muted-foreground mt-1">
-                              Source: {company.jurisdiction?.source || 'Unknown'}
+                              Source: {getDocumentSource(company.jurisdiction)?.documentName || 'Unknown'}
+                              {getDocumentSource(company.jurisdiction)?.documentType ? 
+                                ` (${getDocumentSource(company.jurisdiction)?.documentType})` : ''}
                             </div>
                           </div>
 
@@ -454,9 +526,87 @@ export default function CompanyDetails() {
 
                       <div>
                         <h3 className="text-lg font-semibold mb-2">Address</h3>
-                        <div className="mt-1">{company.address?.value || 'Not provided'}</div>
+                        <div className="mt-1">{getDocumentValue(company.address)}</div>
                         <div className="text-xs text-muted-foreground mt-1">
-                          Source: {company.address?.source || 'Unknown'}
+                          Source: {getDocumentSource(company.address)?.documentName || 'Unknown'}
+                          {getDocumentSource(company.address)?.documentType ? 
+                            ` (${getDocumentSource(company.address)?.documentType})` : ''}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2">Company Activities</h3>
+                        {company.company_activities && Object.keys(company.company_activities).length > 0 ? (
+                          <div>
+                            <ul className="list-disc pl-5 space-y-1">
+                              {company.company_activities[Object.keys(company.company_activities)[0]]?.value?.map((activity, i) => (
+                                <li key={i} className="text-sm">{activity}</li>
+                              ))}
+                            </ul>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Source: {getDocumentSource(company.company_activities)?.documentName || 'Unknown'}
+                              {getDocumentSource(company.company_activities)?.documentType ? 
+                                ` (${getDocumentSource(company.company_activities)?.documentType})` : ''}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">No activities provided</div>
+                        )}
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2">Share Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <div className="text-sm font-medium text-muted-foreground">Shares Issued</div>
+                            <div className="mt-1">{getDocumentValue(company.shares_issued)}</div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Source: {getDocumentSource(company.shares_issued)?.documentName || 'Unknown'}
+                              {getDocumentSource(company.shares_issued)?.documentType ? 
+                                ` (${getDocumentSource(company.shares_issued)?.documentType})` : ''}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-sm font-medium text-muted-foreground">Price Per Share</div>
+                            <div className="mt-1">{getDocumentValue(company.price_per_share)}</div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Source: {getDocumentSource(company.price_per_share)?.documentName || 'Unknown'}
+                              {getDocumentSource(company.price_per_share)?.documentType ? 
+                                ` (${getDocumentSource(company.price_per_share)?.documentType})` : ''}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2">Ownership</h3>
+                        <div className="space-y-4">
+                          <div>
+                            <div className="text-sm font-medium text-muted-foreground mb-1">Directors</div>
+                            {company.directors && company.directors.length > 0 ? (
+                              <ul className="list-disc pl-5 space-y-1">
+                                {company.directors.map((director, i) => (
+                                  <li key={i} className="text-sm">{director}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div className="text-sm text-muted-foreground">No directors provided</div>
+                            )}
+                          </div>
+
+                          <div>
+                            <div className="text-sm font-medium text-muted-foreground mb-1">Shareholders</div>
+                            {company.shareholders && company.shareholders.length > 0 ? (
+                              <ul className="list-disc pl-5 space-y-1">
+                                {company.shareholders.map((shareholder, i) => (
+                                  <li key={i} className="text-sm">{shareholder}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div className="text-sm text-muted-foreground">No shareholders provided</div>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -501,13 +651,19 @@ export default function CompanyDetails() {
                       ) : (
                         <div className="space-y-6">
                           {directors.map((director: Director, idx: number) => {
-                            const idNumberSource = getDocumentSource(director.id_number_source || null);
-                            const idTypeSource = getDocumentSource(director.id_type_source || null);
-                            const nationalitySource = getDocumentSource(director.nationality_source || null);
-                            const addressSource = getDocumentSource(director.residential_address_source || null);
-                            const telSource = getDocumentSource(director.tel_number_source || null);
-                            const emailSource = getDocumentSource(director.email_address_source || null);
-                            const missingItems = extractMissingInfo(director.kyc_status || null);
+                            const idNumberSource = getDirectorDocumentSource(director.id_number_source);
+                            const idTypeSource = getDirectorDocumentSource(director.id_type_source);
+                            const nationalitySource = getDirectorDocumentSource(director.nationality_source);
+                            const addressSource = getDirectorDocumentSource(director.residential_address_source);
+                            const telSource = getDirectorDocumentSource(director.tel_number_source);
+                            const emailSource = getDirectorDocumentSource(director.email_address_source);
+                            
+                            // Safely handle kyc_status to avoid type errors
+                            let directorKycStatus: string | null = null;
+                            if (typeof director.kyc_status === 'string') {
+                              directorKycStatus = director.kyc_status;
+                            }
+                            const missingItems = extractMissingInfo(directorKycStatus);
                             
                             return (
                               <div
