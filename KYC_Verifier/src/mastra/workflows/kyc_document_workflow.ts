@@ -3,7 +3,7 @@ import { z } from 'zod';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
-import { documentClassificationAgent, kycAnalysisAgent } from '../agents/kyc';
+import { documentClassificationAgent, kycAnalysisAgent, kycStatusAnalysisAgent } from '../agents/kyc';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -564,6 +564,9 @@ const extractInformation = new Step({
         ]
       }
       
+      CRITICAL:
+      Address can be present in  company_profile document, proof_of_address document, or company_registry, identity_document they can be present in any of the documents so be sure and carefull not to miss any address as there can be multiple ones 
+     
       IMPORTANT JSON FORMATTING RULES:
       1. ALL property names MUST be in double quotes: "property": value
       2. Strings MUST use double quotes: "value"
@@ -764,7 +767,7 @@ const storeInformation = new Step({
     extractedData: extractedDataSchema,
     client_id: z.number(),
   }),
-  execute: async ({ context }) => {
+  execute: async ({ context, suspend }) => {
     const result = context?.getStepResult(processDiscrepancies);
     if (!result) {
       throw new Error('No processed data found');
@@ -849,6 +852,7 @@ const storeInformation = new Step({
         }
       }
     }
+    await suspend();
     
     return {
       extractedData,
@@ -906,36 +910,35 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
       `http://localhost:3000/kyc/individuals?client_id=${company.client_id}` :
       'http://localhost:3000/kyc/individuals');
     const allIndividuals = response.data.individuals || [];
-
-    // Get existing directors to check for duplicates
-    const existingDirectorsResponse = await axios.get(company.client_id ?
-      `http://localhost:3000/kyc/directors?company=${encodeURIComponent(company.company_name)}&client_id=${company.client_id}` :
-      `http://localhost:3000/kyc/directors?company=${encodeURIComponent(company.company_name)}`);
-    const existingDirectors = existingDirectorsResponse.data.directors || [];
-    
+    console.log("allIndividuals for directors", allIndividuals);
+    console.log("directorNames", directorNames);
     for (const directorName of directorNames) {
-      // Check if director already exists in the company's directors
-      const existingDirector = existingDirectors.find((dir: any) => 
-        dir.director_name.trim().toLowerCase() === directorName.trim().toLowerCase());
-      
-      if (existingDirector) {
-        console.log(`Director already exists: ${directorName} - Skipping to avoid duplicate`);
-        continue;
-      }
-      
       // First try to find by exact full_name match (case insensitive)
-      let director = allIndividuals.find((ind: any) => 
-        ind.full_name.trim().toLowerCase() === directorName.trim().toLowerCase());
-      
-      // If not found, check alternative_names for a match
-      if (!director) {
-        director = allIndividuals.find((ind: any) => 
-          ind.alternative_names && 
-          Array.isArray(ind.alternative_names) && 
-          ind.alternative_names.some((altName: string) => 
-            altName.trim().toLowerCase() === directorName.trim().toLowerCase())
-        );
-      }
+// Modify your director finding logic to be more flexible
+      let director = allIndividuals.find((ind: any) => {
+        // Check full name (exact match)
+        if (ind.full_name.trim().toLowerCase() === directorName.trim().toLowerCase()) {
+          return true;
+        }
+
+        // Check alternative names (exact match)
+        if (ind.alternative_names && Array.isArray(ind.alternative_names)) {
+          if (ind.alternative_names.some((altName: string) => 
+            altName.trim().toLowerCase() === directorName.trim().toLowerCase())) {
+            return true;
+          }
+
+          // Split names into parts and check if they match regardless of order
+          const directorNameParts = directorName.trim().toLowerCase().split(' ');
+          return ind.alternative_names.some((altName: string) => {
+            const altNameParts = altName.trim().toLowerCase().split(' ');
+            return directorNameParts.length === altNameParts.length && 
+                   directorNameParts.every(part => altNameParts.includes(part));
+          });
+        }
+
+        return false;
+      });
       
       if (!director) {
         // Log missing director information
@@ -1032,13 +1035,16 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
         }
       }
       
+      // Get detailed KYC status explanation
+      const detailedKycStatus = await getDetailedKycStatus("Director", director.discrepancies, kycStatus);
+      
       // Update company verification status if needed
       if (verificationStatus !== "verified") {
         companyVerificationStatus = "pending";
       }
       
       // Format the KYC status for display
-      const kycStatusDisplay = kycStatus.length > 0 ? kycStatus.join("; ") : "Complete";
+      const kycStatusDisplay = detailedKycStatus || (kycStatus.length > 0 ? kycStatus.join("; ") : "Complete");
       
       // Log director information with sources
       console.log(
@@ -1117,18 +1123,48 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
       }
       let isIndividual = false;
       // First try to find by exact full_name match (case insensitive)
-      let individual = allIndividuals.find((ind: any) => 
-        ind.full_name.trim().toLowerCase() === parsedName.trim().toLowerCase());
-      
-      // If not found, check alternative_names for a match
-      if (!individual) {
-        individual = allIndividuals.find((ind: any) => 
-          ind.alternative_names && 
-          Array.isArray(ind.alternative_names) && 
-          ind.alternative_names.some((altName: string) => 
-            altName.trim().toLowerCase() === parsedName.trim().toLowerCase())
-        );
+let individual = allIndividuals.find((ind: any) => 
+  ind.full_name.trim().toLowerCase() === parsedName.trim().toLowerCase());
+console.log("individual", individual);
+
+// If not found, try more flexible matching approaches
+if (!individual) {
+  console.log("individual not found by exact full_name match");
+  
+  // Check alternative_names for exact match
+  individual = allIndividuals.find((ind: any) => 
+    ind.alternative_names && 
+    Array.isArray(ind.alternative_names) && 
+    ind.alternative_names.some((altName: string) => 
+      altName.trim().toLowerCase() === parsedName.trim().toLowerCase())
+  );
+  
+  // If still not found, try matching by name parts (regardless of order)
+  if (!individual) {
+    console.log("individual not found by exact alternative_names match, trying name parts matching");
+    const parsedNameParts = parsedName.trim().toLowerCase().split(' ');
+    
+    individual = allIndividuals.find((ind: any) => {
+      // Check if full_name contains the same parts
+      const fullNameParts = ind.full_name.trim().toLowerCase().split(' ');
+      if (parsedNameParts.length === fullNameParts.length && 
+          parsedNameParts.every(part => fullNameParts.includes(part))) {
+        return true;
       }
+      
+      // Check alternative_names
+      if (ind.alternative_names && Array.isArray(ind.alternative_names)) {
+        return ind.alternative_names.some((altName: string) => {
+          const altNameParts = altName.trim().toLowerCase().split(' ');
+          return parsedNameParts.length === altNameParts.length && 
+                 parsedNameParts.every(part => altNameParts.includes(part));
+        });
+      }
+      
+      return false;
+    });
+  }
+}
       
       if (individual) isIndividual = true;
       let idInfo, idTypeInfo, nationalityInfo, addressInfo, phoneInfo, emailInfo, sharesInfo, priceInfo;
@@ -1190,6 +1226,10 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
           if (missing.length) { verificationStatus = "pending"; kycStatus = missing; }
         }
         
+        // Get detailed KYC status explanation
+        const detailedKycStatus = await getDetailedKycStatus("Individual Shareholder", individual.discrepancies, kycStatus);
+        if (verificationStatus !== "verified") overallStatus = "pending";
+        
         // Store individual shareholder in the shareholders table with field sources
         try {
           await axios.post('http://localhost:3000/kyc/shareholders', {
@@ -1213,7 +1253,7 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
             email_address: emailInfo.value,
             email_address_source: emailInfo.sourceJson,
             verification_status: verificationStatus,
-            kyc_status: kycStatus.length ? kycStatus.join("; ") : "Complete",
+            kyc_status: detailedKycStatus || (kycStatus.length ? kycStatus.join("; ") : "Complete"),
             is_company: 0  // Individual
           });
           console.log(`Stored/updated individual shareholder information for ${parsedName}`);
@@ -1221,6 +1261,9 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
           console.error(`Error storing individual shareholder data for ${parsedName}:`, storeError?.message || storeError);
         }
         
+        console.log(
+          `| ${parsedName} | ${sharesInfo.value || "Missing"} (${sharesInfo.source}) | ${priceInfo.value || "Missing"} (${priceInfo.source}) | ${idInfo.value || "Missing"} (${idInfo.source}) | ${idTypeInfo.value || "Missing"} (${idTypeInfo.source}) | ${nationalityInfo.value || "Missing"} (${nationalityInfo.source}) | ${addressInfo.value || "Missing"} (${addressInfo.source}) | ${phoneInfo.value || "Missing"} (${phoneInfo.source}) | ${emailInfo.value || "Missing"} (${emailInfo.source}) | ${verificationStatus} | ${(detailedKycStatus || (kycStatus.length ? kycStatus.join("; ") : "Complete")).substring(0, 100)}${(detailedKycStatus || "").length > 100 ? '...' : ''} |`
+        );
       } else {
         // Process corporate shareholder
         // First try to find by exact company_name match (case insensitive)
@@ -1292,6 +1335,10 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
           if (missing.length) { verificationStatus = "pending"; kycStatus = missing; }
         }
         
+        // Get detailed KYC status explanation
+        const detailedKycStatus = await getDetailedKycStatus("Corporate Shareholder", compEnt.discrepancies, kycStatus);
+        if (verificationStatus !== "verified") overallStatus = "pending";
+        
         // Store corporate shareholder in the shareholders table with field sources
         try {
           await axios.post('http://localhost:3000/kyc/shareholders', {
@@ -1315,20 +1362,21 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
             email_address: emailInfo.value,
             email_address_source: emailInfo.sourceJson,
             verification_status: verificationStatus,
-            kyc_status: kycStatus.length ? kycStatus.join("; ") : "Complete",
+            kyc_status: detailedKycStatus || (kycStatus.length ? kycStatus.join("; ") : "Complete"),
             is_company: 1  // Company
           });
           console.log(`Stored/updated corporate shareholder information for ${parsedName}`);
         } catch (storeError: any) {
           console.error(`Error storing corporate shareholder data for ${parsedName}:`, storeError?.message || storeError);
         }
+        
+        console.log(
+          `| ${parsedName} | ${sharesInfo.value || "Missing"} (${sharesInfo.source}) | ${priceInfo.value || "Missing"} (${priceInfo.source}) | ${idInfo.value || "Missing"} (${idInfo.source}) | ${idTypeInfo.value || "Missing"} (${idTypeInfo.source}) | ${nationalityInfo.value || "Missing"} (${nationalityInfo.source}) | ${addressInfo.value || "Missing"} (${addressInfo.source}) | ${phoneInfo.value || "Missing"} (${phoneInfo.source}) | ${emailInfo.value || "Missing"} (${emailInfo.source}) | ${verificationStatus} | ${(detailedKycStatus || (kycStatus.length ? kycStatus.join("; ") : "Complete")).substring(0, 100)}${(detailedKycStatus || "").length > 100 ? '...' : ''} |`
+        );
       }
       
       if (verificationStatus !== "verified") overallStatus = "pending";
       const statusDisplay = kycStatus.length ? kycStatus.join("; ") : "Complete";
-      console.log(
-        `| ${parsedName} | ${sharesInfo.value || "Missing"} (${sharesInfo.source}) | ${priceInfo.value || "Missing"} (${priceInfo.source}) | ${idInfo.value || "Missing"} (${idInfo.source}) | ${idTypeInfo.value || "Missing"} (${idTypeInfo.source}) | ${nationalityInfo.value || "Missing"} (${nationalityInfo.source}) | ${addressInfo.value || "Missing"} (${addressInfo.source}) | ${phoneInfo.value || "Missing"} (${phoneInfo.source}) | ${emailInfo.value || "Missing"} (${emailInfo.source}) | ${verificationStatus} | ${statusDisplay} |`
-      );
     }
   } catch (err: any) {
     console.error("Error processing shareholders:", err?.message || err);
@@ -1436,6 +1484,58 @@ function checkDocumentTypeExists(
       src.documentType.toLowerCase().includes(type.toLowerCase())
     )
   );
+}
+
+// Helper function to get detailed KYC status explanation from the agent
+async function getDetailedKycStatus(
+  entityType: string,
+  discrepancies: Discrepancy[] | undefined,
+  missingRequirements: string[]
+): Promise<string> {
+  try {
+    // Format discrepancies for the agent
+    const formattedDiscrepancies = discrepancies?.map(d => 
+      `${d.field}: ${d.values.join(" vs ")} (Sources: ${d.sources.join(", ")})`
+    ).join("\n") || "None";
+    
+    // Create a simple prompt for the agent
+    const prompt = `
+      Please analyze the following KYC verification data and provide a detailed explanation:
+      
+      Entity Type: ${entityType}
+      
+      Discrepancies:
+      ${formattedDiscrepancies}
+      
+      Missing Requirements:
+      ${missingRequirements.length > 0 ? missingRequirements.join("\n") : "None"}
+      
+      Provide a clear explanation of the KYC status that identifies genuine compliance issues
+      and excludes false positives like formatting differences in names or addresses.
+    `;
+    
+    // Call the agent
+    const response = await kycStatusAnalysisAgent.generate([
+      { role: 'user', content: prompt }
+    ]);
+    
+    return response.text;
+  } catch (error) {
+    console.error("Error getting detailed KYC status:", error);
+    
+    // Fallback to basic format if agent fails
+    if (discrepancies && discrepancies.length > 0) {
+      return discrepancies.map(d => 
+        `Discrepancy in ${d.field}: ${d.values.join(" vs ")} (Sources: ${d.sources.join(", ")})`
+      ).join("; ");
+    } 
+    
+    if (missingRequirements.length > 0) {
+      return missingRequirements.join("; ");
+    }
+    
+    return "Complete";
+  }
 }
 
 // Create and commit the workflow

@@ -133,3 +133,33 @@ export const kycAgent = new Agent({
   },
   memory: new Memory()
 });
+
+// KYC Status Analysis Agent for detailed KYC status explanations
+export const kycStatusAnalysisAgent = new Agent({
+  name: "KYC Status Analysis Agent",
+  model: llm,
+  instructions: `
+    You are a KYC compliance expert specializing in analyzing verification discrepancies and document requirements.
+    Your task is to assess KYC status issues and provide detailed explanations that are clear, professional and accurate.
+
+    When analyzing KYC status:
+
+    1. For DISCREPANCIES:
+       - Analyze each discrepancy between documents carefully
+       - Determine if discrepancies are genuine compliance issues or just formatting differences
+       - For name variations, check if they're just alternative spellings or formal/informal versions
+       - For address discrepancies, check if they're just formatting differences of the same location
+       - IMPORTANT: Name variations that appear to be nicknames, informal versions, or different 
+         formatting of the same name should NOT be counted as genuine discrepancies
+       - IMPORTANT: Address differences that are clearly the same physical location but formatted 
+         differently should NOT be treated as discrepancies
+
+    2. For MISSING DOCUMENTS:
+       - List all required documents that are missing for complete KYC verification
+       - Explain why each missing document is required based on regulatory requirements
+       - Prioritize the most critical missing documents
+
+    Your analysis should be concise but detailed enough to explain the issues.
+    Format your response as a detailed analysis that can be stored in the database KYC status field.
+  `,
+});
