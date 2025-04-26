@@ -1,4 +1,4 @@
-import { Step, Workflow } from '@mastra/core/workflows';
+import { Step, Workflow, WorkflowContext } from '@mastra/core/workflows';
 import { z } from 'zod';
 import axios from 'axios';
 import fs from 'fs';
@@ -11,8 +11,13 @@ const __dirname = path.dirname(__filename);
 
 // Define schemas for input and output data
 const workflowTriggerSchema = z.object({
-  company: z.string().describe('The company name to process KYC documents for'),
+  client_id: z.number().describe('The client ID to process documents for'),
 });
+
+// Define the type for the workflow input
+type WorkflowInput = {
+  client_id: number;
+};
 
 // Document structure from API
 const documentSchema = z.object({
@@ -20,6 +25,7 @@ const documentSchema = z.object({
   document_name: z.string(),
   document_type: z.string().nullable(),
   file_path: z.string().optional(),
+  client_id: z.number(),
 });
 
 // Document content schema
@@ -28,6 +34,7 @@ const documentContentSchema = z.object({
     id: z.number(),
     document_name: z.string(),
     document_type: z.string().nullable(),
+    client_id: z.number().optional(),
   }),
   content: z.string(),
 });
@@ -63,6 +70,7 @@ interface Discrepancy {
 
 interface Individual {
   full_name: string;
+  client_id?: number;
   alternative_names?: string[];
   id_numbers?: Record<string, Source>;
   id_types?: Record<string, Source>;
@@ -76,15 +84,30 @@ interface Individual {
   discrepancies?: Discrepancy[];
 }
 
+interface Director {
+  name: string;
+  position?: string;
+  appointment_date?: string;
+}
+
+interface Shareholder {
+  name: string;
+  is_corporate?: boolean;
+  shares?: number;
+  percentage?: number;
+  date?: string;
+}
+
 interface CompanyRecord {
   company_name: string;
+  client_id?: number;
   alternative_names?: string[];
   registration_number?: Record<string, Source>;
   jurisdiction?: Record<string, Source>;
-  address?: Record<string, Source>;
+  address?: any;
   directors?: string[];
   shareholders?: string[];
-  company_activities?: Record<string, Source>;
+  company_activities?: any;
   shares_issued?: Record<string, Source>;
   price_per_share?: Record<string, Source>;
   discrepancies?: Discrepancy[];
@@ -155,14 +178,29 @@ const workflowResultSchema = z.object({
 // Step 1: Fetch documents
 const fetchDocuments = new Step({
   id: 'fetch-documents',
-  description: 'Fetches all available documents',
+  description: 'Fetches all available documents for a specific client',
   inputSchema: workflowTriggerSchema,
-  outputSchema: z.array(documentSchema),
+  outputSchema: z.object({
+    documents: z.array(documentSchema),
+    client_id: z.number(),
+  }),
   execute: async ({ context }) => {
     try {
-      console.log("Fetching documents...");
-      const response = await axios.get('http://localhost:3000/kyc/documents');
-      return response.data.documents;
+      // Get the trigger data from context
+      const triggerData = context?.getStepResult<WorkflowInput>('trigger');
+      if (!triggerData || !triggerData.client_id) {
+        throw new Error('Client ID is required');
+      }
+      
+      const clientId = triggerData.client_id;
+      console.log(`Fetching documents for client ID: ${clientId}...`);
+      const response = await axios.get(`http://localhost:3000/kyc/documents?client_id=${clientId}`);
+      
+      // Return both documents and client_id for future steps
+      return {
+        documents: response.data.documents,
+        client_id: clientId
+      };
     } catch (error: unknown) {
       console.error(`Error executing KYC document workflow step 1: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
@@ -174,24 +212,36 @@ const fetchDocuments = new Step({
 const readDocumentContents = new Step({
   id: 'read-document-contents',
   description: 'Reads the content of each document',
-  inputSchema: z.array(documentSchema),
-  outputSchema: z.array(documentContentSchema),
+  inputSchema: z.object({
+    documents: z.array(documentSchema),
+    client_id: z.number(),
+  }),
+  outputSchema: z.object({
+    documentContents: z.array(documentContentSchema),
+    client_id: z.number(),
+  }),
   execute: async ({ context }) => {
-    const documents = context?.getStepResult(fetchDocuments);
-    if (!documents || documents.length === 0) {
+    // Get the result from the previous step
+    const fetchResult = context?.getStepResult(fetchDocuments);
+    if (!fetchResult || !fetchResult.documents || fetchResult.documents.length === 0) {
       throw new Error('No documents found');
     }
 
+    const { documents, client_id } = fetchResult;
     const documentContents = [];
+    
     for (const doc of documents) {
       try {
         console.log(`Reading content for document ${doc.id}: ${doc.document_name}`);
         const response = await axios.get(`http://localhost:3000/kyc/documents/${doc.id}/content`);
+        
+        // Pass client_id through the document object
         documentContents.push({
           document: {
             id: doc.id,
             document_name: doc.document_name,
             document_type: doc.document_type,
+            client_id: doc.client_id || client_id, // Include client_id if available
           },
           content: response.data.content,
         });
@@ -203,12 +253,15 @@ const readDocumentContents = new Step({
             id: doc.id,
             document_name: doc.document_name,
             document_type: doc.document_type,
+            client_id: doc.client_id || client_id, // Include client_id if available
           },
           content: `Error reading document content: ${error instanceof Error ? error.message : 'Unknown error'}`,
         });
       }
     }
-    return documentContents;
+    
+    // Pass both document contents and client_id to the next step
+    return { documentContents, client_id };
   },
 });
 
@@ -216,14 +269,21 @@ const readDocumentContents = new Step({
 const classifyDocuments = new Step({
   id: 'classify-documents',
   description: 'Determines document types based on content analysis (batched)',
-  inputSchema: z.array(documentContentSchema),
-  outputSchema: z.array(documentClassificationSchema),
+  inputSchema: z.object({
+    documentContents: z.array(documentContentSchema),
+    client_id: z.number(),
+  }),
+  outputSchema: z.object({
+    classifiedDocuments: z.array(documentClassificationSchema),
+    client_id: z.number(),
+  }),
   execute: async ({ context }) => {
-    const documentContents = context?.getStepResult(readDocumentContents);
-    if (!documentContents || documentContents.length === 0) {
+    const result = context?.getStepResult(readDocumentContents);
+    if (!result || !result.documentContents || result.documentContents.length === 0) {
       throw new Error('No document contents found');
     }
 
+    const { documentContents, client_id } = result;
     console.log(`Classifying ${documentContents.length} documents in a single batch...`);
     
     // Filter out documents that already have a type
@@ -243,7 +303,10 @@ const classifyDocuments = new Step({
     // If all documents are already classified, skip the API call
     if (documentsToClassify.length === 0) {
       console.log("All documents already have classifications. Skipping classification step.");
-      return preClassifiedDocuments;
+      return {
+        classifiedDocuments: preClassifiedDocuments,
+        client_id
+      };
     }
     
     // Create a batch classification prompt
@@ -271,10 +334,18 @@ const classifyDocuments = new Step({
       DOC_ID:classification_type
       
       For example:
-      1:identity_document
+      1:identity_document(NRIC)
+      2:proof_of_address(Bank Statement)
       2:company_registry
       3:director_appointment
       
+      CRITICAL:
+      For identity documents, if the document is a passport, then the classification  should be like this:
+      DOC_ID:identity_document(Passport)
+
+      And For proof of address documents, if the document is a bank statement, then the classification  should be like this:
+      DOC_ID:proof_of_address(Bank Statement)
+
       DO NOT include any explanations or additional text. Each document should be classified on a separate line.
       
       ## Documents to Classify:
@@ -332,13 +403,16 @@ const classifyDocuments = new Step({
         const documentType = classificationMap.get(doc.document.id) || 'unknown';
         
         try {
-          // Update document type in database
-          await axios.patch(`http://localhost:3000/kyc/documents/${doc.document.id}`, {
-            document_type: documentType
-          });
+          // Update document type in database with client_id if available
+          const updateParams: any = { document_type: documentType };
+          if (client_id) {
+            updateParams.client_id = client_id;
+          }
+          
+          await axios.patch(`http://localhost:3000/kyc/documents/${doc.document.id}`, updateParams);
           
           console.log(`Classified document ${doc.document.id}: ${doc.document.document_name} as ${documentType}`);
-        } catch (updateError) {
+        } catch (updateError: any) {
           console.error(`Error updating document type in database: ${updateError.message}`);
         }
         
@@ -351,22 +425,28 @@ const classifyDocuments = new Step({
       }
       
       // Make sure every returned object has a non-null document_type value
-      return classifiedDocuments.map(doc => ({
+      return {
+        classifiedDocuments: classifiedDocuments.map(doc => ({
         id: doc.id,
         document_name: doc.document_name,
         document_type: doc.document_type || 'unknown',
         content: doc.content
-      }));
+        })),
+        client_id
+      };
     } catch (error) {
       console.error('Error in batch document classification:', error);
       
       // Fallback: return documents with "unknown" type to not block the workflow
-      return documentContents.map(doc => ({
+      return {
+        classifiedDocuments: documentContents.map(doc => ({
         id: doc.document.id,
         document_name: doc.document.document_name,
         document_type: doc.document.document_type || 'unknown',
         content: doc.content
-      }));
+        })),
+        client_id
+      };
     }
   },
 });
@@ -375,14 +455,21 @@ const classifyDocuments = new Step({
 const extractInformation = new Step({
   id: 'extract-information',
   description: 'Extracts structured information about individuals and companies',
-  inputSchema: z.array(documentClassificationSchema),
-  outputSchema: extractedDataSchema,
+  inputSchema: z.object({
+    classifiedDocuments: z.array(documentClassificationSchema),
+    client_id: z.number(),
+  }),
+  outputSchema: z.object({
+    extractedData: extractedDataSchema,
+    client_id: z.number(),
+  }),
   execute: async ({ context }) => {
-    const classifiedDocuments = context?.getStepResult(classifyDocuments);
-    if (!classifiedDocuments || classifiedDocuments.length === 0) {
+    const result = context?.getStepResult(classifyDocuments);
+    if (!result || !result.classifiedDocuments || result.classifiedDocuments.length === 0) {
       throw new Error('No classified documents found');
     }
 
+    const { classifiedDocuments, client_id } = result;
     console.log(`Extracting information from ${classifiedDocuments.length} documents...`);
     
     // Prepare extraction prompt with document contents
@@ -401,7 +488,7 @@ const extractInformation = new Step({
       - Addresses with sources
       - Email addresses with sources
       - Phone numbers with sources
-      - Roles in companies with sources, (can have multiple roles as well)
+      - Roles in companies with sources
       - Shares owned (if any) with sources
       - Price per share (if available) with sources
       
@@ -434,9 +521,7 @@ const extractInformation = new Step({
       
       // Truncate very long documents to avoid token limits
       let content = doc.content;
-      if (content.length > 3000) {
-        content = content.substring(0, 3000) + "... [content truncated]";
-      }
+
       
       prompt += `${content}\n\n---\n\n`;
     });
@@ -449,7 +534,7 @@ const extractInformation = new Step({
       - Also take document name in consideration while gathering all that information, like if a document name is director registry for some company then that document may contain information about directors of that company. So keep document names in consideration also.
       
       ## Output Format:
-      Return ONLY a JSON object with the following structure:
+      Return ONLY a valid JSON object with the following structure. Ensure ALL property names are double-quoted:
       {
         "individuals": [
           {
@@ -479,6 +564,21 @@ const extractInformation = new Step({
         ]
       }
       
+      IMPORTANT JSON FORMATTING RULES:
+      1. ALL property names MUST be in double quotes: "property": value
+      2. Strings MUST use double quotes: "value"
+      3. Do not use single quotes anywhere in the JSON
+      4. Escape any double quotes within string values: "He said \\"hello\\""
+      5. Do not include trailing commas in arrays or objects
+      6. For non-English text like Chinese characters (e.g., 谭志聪), encode properly as UTF-8 characters, not as \\u escape sequences
+      7. Avoid line breaks within string values
+      8. All objects must have matching braces {}
+      9. All arrays must have matching brackets []
+      10. The entire response must be a complete, valid JSON object
+      11. NEVER use the same key twice in the same object
+      12. For multiple values, use arrays: "activities": ["value1", "value2"] 
+      13. Do not include ANY markdown formatting, code blocks, or explanations
+
       Your response should start with "{" and end with "}". Do not include any explanations, markdown, or code blocks.
     `;
     
@@ -500,6 +600,7 @@ const extractInformation = new Step({
       
       console.log("Received response, parsing...");
       
+      console.log("resultText is", resultText);
       // Clean up the response text and extract the JSON
       let jsonText = resultText.trim();
       
@@ -550,7 +651,10 @@ const extractInformation = new Step({
         if (!extractedData.individuals) extractedData.individuals = [];
         if (!extractedData.companies) extractedData.companies = [];
         
-        return extractedData;
+        return { 
+          extractedData,
+          client_id 
+        };
       } catch (parseError) {
         console.error('Error parsing JSON:', parseError);
         throw new Error(`Failed to parse extracted information`);
@@ -566,8 +670,14 @@ const extractInformation = new Step({
 const processDiscrepancies = new Step({
   id: 'process-discrepancies',
   description: 'Identifies discrepancies in the extracted information',
-  inputSchema: extractedDataSchema,
-  outputSchema: extractedDataSchema,
+  inputSchema: z.object({
+    extractedData: extractedDataSchema,
+    client_id: z.number(),
+  }),
+  outputSchema: z.object({
+    extractedData: extractedDataSchema,
+    client_id: z.number(),
+  }),
   execute: async ({ context }) => {
     const extractedData = context?.getStepResult(extractInformation);
     if (!extractedData) {
@@ -577,7 +687,7 @@ const processDiscrepancies = new Step({
     console.log("Processing discrepancies in extracted data...");
     
     // Process individuals
-    extractedData.individuals.forEach((individual: any) => {
+    extractedData.extractedData.individuals.forEach((individual: any) => {
       const discrepancies: { field: string; values: string[]; sources: string[] }[] = [];
       
       // Check for discrepancies in each field with multiple sources
@@ -592,7 +702,7 @@ const processDiscrepancies = new Step({
     });
     
     // Process companies
-    extractedData.companies.forEach((company: any) => {
+    extractedData.extractedData.companies.forEach((company: any) => {
       const discrepancies: { field: string; values: string[]; sources: string[] }[] = [];
       
       // Check for discrepancies in each field with multiple sources
@@ -604,7 +714,11 @@ const processDiscrepancies = new Step({
       company.discrepancies = discrepancies;
     });
     
-    return extractedData;
+    // Return both extractedData and client_id
+    return {
+      extractedData: extractedData.extractedData,
+      client_id: extractedData.client_id
+    };
   },
 });
 
@@ -642,21 +756,35 @@ function checkFieldDiscrepancies(
 const storeInformation = new Step({
   id: 'store-information',
   description: 'Stores the extracted information in the database',
-  inputSchema: extractedDataSchema,
-  outputSchema: extractedDataSchema,
+  inputSchema: z.object({
+    extractedData: extractedDataSchema,
+    client_id: z.number(),
+  }),
+  outputSchema: z.object({
+    extractedData: extractedDataSchema,
+    client_id: z.number(),
+  }),
   execute: async ({ context }) => {
-    const extractedData = context?.getStepResult(processDiscrepancies);
-    if (!extractedData) {
+    const result = context?.getStepResult(processDiscrepancies);
+    if (!result) {
       throw new Error('No processed data found');
     }
+    
+    const { extractedData, client_id } = result;
 
     console.log("Storing extracted information...");
     
     // Store individuals with upsert logic
     for (const individual of extractedData.individuals) {
+      // Add client_id to individual object before storing
+      (individual as Individual & { client_id: number }).client_id = client_id;
       try {
         // Check if individual exists before inserting
-        const checkResponse = await axios.get(`http://localhost:3000/kyc/individuals/by-name/${encodeURIComponent(individual.full_name)}`);
+        const checkResponse = await axios.get(
+          (individual as Individual & { client_id?: number }).client_id ? 
+          `http://localhost:3000/kyc/individuals/by-name/${encodeURIComponent(individual.full_name)}?client_id=${(individual as Individual & { client_id: number }).client_id}` :
+          `http://localhost:3000/kyc/individuals/by-name/${encodeURIComponent(individual.full_name)}`
+        );
         
         if (checkResponse.data.individual) {
           // Update existing individual
@@ -667,8 +795,9 @@ const storeInformation = new Step({
           await axios.post('http://localhost:3000/kyc/individuals', individual);
           console.log(`Stored new individual: ${individual.full_name}`);
         }
-      } catch (error) {
-        if (error.response && error.response.status === 404) {
+      } catch (error: unknown) {
+        const axiosError = error as { response?: { status: number } };
+        if (axiosError.response && axiosError.response.status === 404) {
           // Individual not found, create new
           await axios.post('http://localhost:3000/kyc/individuals', individual);
           console.log(`Stored new individual: ${individual.full_name}`);
@@ -680,9 +809,15 @@ const storeInformation = new Step({
     
     // Store companies with upsert logic
     for (const company of extractedData.companies) {
+      // Add client_id to company object before storing
+      (company as CompanyRecord & { client_id?: number }).client_id = client_id;
       try {
         // Check if company exists before inserting
-        const checkResponse = await axios.get(`http://localhost:3000/kyc/companies/by-name/${encodeURIComponent(company.company_name)}`);
+        const checkResponse = await axios.get(
+          (company as CompanyRecord & { client_id?: number }).client_id ? 
+          `http://localhost:3000/kyc/companies/by-name/${encodeURIComponent(company.company_name)}?client_id=${(company as CompanyRecord & { client_id: number }).client_id}` :
+          `http://localhost:3000/kyc/companies/by-name/${encodeURIComponent(company.company_name)}`
+        );
         
         if (checkResponse.data.company) {
           // Update existing company
@@ -698,8 +833,9 @@ const storeInformation = new Step({
         await processDirectorsForCompany(company);
         // Process shareholders for this company after storing directors
         await processShareholdersForCompany(company);
-      } catch (error) {
-        if (error.response && error.response.status === 404) {
+      } catch (error: unknown) {
+        const axiosError = error as { response?: { status: number } };
+        if (axiosError.response && axiosError.response.status === 404) {
           // Company not found, create new
           await axios.post('http://localhost:3000/kyc/companies', company);
           console.log(`Stored new company: ${company.company_name}`);
@@ -714,7 +850,10 @@ const storeInformation = new Step({
       }
     }
     
-    return extractedData;
+    return {
+      extractedData,
+      client_id
+    };
   },
 });
 
@@ -741,7 +880,7 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
   // Extract registered address
   let registeredAddress = "Unknown";
   if (company.address && Object.keys(company.address).length > 0) {
-    const addressSource = Object.values(company.address)[0];
+    const addressSource = Object.values(company.address)[0] as Source;
     registeredAddress = addressSource.value || "Unknown";
   }
   console.log(`e. Intended Registered Address: ${registeredAddress}`);
@@ -762,7 +901,10 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
   let companyVerificationStatus = "verified";
   
   try {
-    const response = await axios.get('http://localhost:3000/kyc/individuals');
+    // Query individuals API with client_id if available
+    const response = await axios.get(company.client_id ? 
+      `http://localhost:3000/kyc/individuals?client_id=${company.client_id}` :
+      'http://localhost:3000/kyc/individuals');
     const allIndividuals = response.data.individuals || [];
     
     for (const directorName of directorNames) {
@@ -774,13 +916,16 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
         companyVerificationStatus = "pending";
         
         // Store minimal data about this missing director
+        const directorData = {
+          client_id: (company as CompanyRecord & { client_id?: number }).client_id,
+          company_name: company.company_name,
+          director_name: directorName,
+          verification_status: 'pending',
+          kyc_status: 'Missing all required information'
+        };
+        
         try {
-          await axios.post('http://localhost:3000/kyc/directors', {
-            company_name: company.company_name,
-            director_name: directorName,
-            verification_status: 'pending',
-            kyc_status: 'Missing all required information'
-          });
+          await axios.post('http://localhost:3000/kyc/directors', directorData);
         } catch (storeError: any) {
           console.error(`Error storing director data for ${directorName}:`, storeError?.message || storeError);
         }
@@ -795,12 +940,13 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
       const phoneInfo = getValueAndSource(director.phones);
       const emailInfo = getValueAndSource(director.emails);
       
-      // Track document sources
-      if (idInfo.documentId) documentSources[`id_number`] = {documentId: idInfo.documentId, documentType: idInfo.documentType || ''};
-      if (nationalityInfo.documentId) documentSources[`nationality`] = {documentId: nationalityInfo.documentId, documentType: nationalityInfo.documentType || ''};
-      if (addressInfo.documentId) documentSources[`address`] = {documentId: addressInfo.documentId, documentType: addressInfo.documentType || ''};
-      if (phoneInfo.documentId) documentSources[`phone`] = {documentId: phoneInfo.documentId, documentType: phoneInfo.documentType || ''};
-      if (emailInfo.documentId) documentSources[`email`] = {documentId: emailInfo.documentId, documentType: emailInfo.documentType || ''};
+      // Track document sources in a non-overlapping way
+      const documentSourcesMap: Record<string, {documentId: number, documentType: string}> = {};
+      if (idInfo.documentId) documentSourcesMap['id_number'] = {documentId: idInfo.documentId, documentType: idInfo.documentType || ''};
+      if (nationalityInfo.documentId) documentSourcesMap['nationality'] = {documentId: nationalityInfo.documentId, documentType: nationalityInfo.documentType || ''};
+      if (addressInfo.documentId) documentSourcesMap['address'] = {documentId: addressInfo.documentId, documentType: addressInfo.documentType || ''};
+      if (phoneInfo.documentId) documentSourcesMap['phone'] = {documentId: phoneInfo.documentId, documentType: phoneInfo.documentType || ''};
+      if (emailInfo.documentId) documentSourcesMap['email'] = {documentId: emailInfo.documentId, documentType: emailInfo.documentType || ''};
       
       // Infer ID type based on nationality and ID number if not already present
       let idType = director.id_types ? getValueAndSource(director.id_types).value : null;
@@ -810,7 +956,15 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
       
       const idTypeInfo = director.id_types ? 
         getValueAndSource(director.id_types) : 
-        { value: idType, source: "Inferred from nationality", documentId: nationalityInfo.documentId, sourceJson: JSON.stringify({source: "Inferred from nationality", documentId: nationalityInfo.documentId}) };
+        { 
+          value: idType, 
+          source: "Inferred from nationality", 
+          documentId: nationalityInfo.documentId, 
+          sourceJson: JSON.stringify({
+            source: "Inferred from nationality", 
+            documentId: nationalityInfo.documentId
+          }) 
+        };
       
       // Check for document types in sources
       const hasIdDocument = checkDocumentTypeExists(director.id_numbers, ['identity_document', 'nric', 'passport', 'fin']);
@@ -871,31 +1025,28 @@ async function processDirectorsForCompany(company: CompanyRecord): Promise<void>
         `${verificationStatus} | ${kycStatusDisplay} |`
       );
       
-      // Store this director information in the directors table with field sources
-      try {
-        await axios.post('http://localhost:3000/kyc/directors', {
-          company_name: company.company_name,
-          director_name: director.full_name,
-          id_number: idInfo.value,
-          id_number_source: idInfo.sourceJson,
-          id_type: idTypeInfo.value,
-          id_type_source: idTypeInfo.sourceJson,
-          nationality: nationalityInfo.value,
-          nationality_source: nationalityInfo.sourceJson,
-          residential_address: addressInfo.value,
-          residential_address_source: addressInfo.sourceJson,
-          tel_number: phoneInfo.value,
-          tel_number_source: phoneInfo.sourceJson,
-          email_address: emailInfo.value,
-          email_address_source: emailInfo.sourceJson,
-          verification_status: verificationStatus,
-          kyc_status: kycStatusDisplay
-        });
-        
-        console.log(`Stored/updated director information for ${director.full_name}`);
-      } catch (storeError: any) {
-        console.error(`Error storing director data for ${director.full_name}:`, storeError?.message || storeError);
-      }
+      // Query individuals API 
+      await axios.post('http://localhost:3000/kyc/directors', {
+        client_id: company.client_id,
+        company_name: company.company_name,
+        director_name: director.full_name,
+        id_number: idInfo.value,
+        id_number_source: idInfo.sourceJson,
+        id_type: idTypeInfo.value,
+        id_type_source: idTypeInfo.sourceJson,
+        nationality: nationalityInfo.value,
+        nationality_source: nationalityInfo.sourceJson,
+        residential_address: addressInfo.value,
+        residential_address_source: addressInfo.sourceJson,
+        tel_number: phoneInfo.value,
+        tel_number_source: phoneInfo.sourceJson,
+        email_address: emailInfo.value,
+        email_address_source: emailInfo.sourceJson,
+        verification_status: verificationStatus,
+        kyc_status: kycStatusDisplay
+      });
+      
+      console.log(`Stored/updated director information for ${director.full_name}`);
     }
   } catch (error: any) {
     console.error("Error fetching individuals:", error?.message || error);
@@ -917,9 +1068,15 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
   console.log("|--------------|------------------------|-------------------------|-----------------|------------------|---------------------|-----------------|------------------|---------------------|-------------------|-------------|");
   let overallStatus = "verified";
   try {
-    const indResp = await axios.get('http://localhost:3000/kyc/individuals');
+    // Query individuals and companies API with client_id if available
+    const indResp = await axios.get(company.client_id ?
+      `http://localhost:3000/kyc/individuals?client_id=${company.client_id}` :
+      'http://localhost:3000/kyc/individuals');
     const allIndividuals = indResp.data.individuals || [];
-    const compResp = await axios.get('http://localhost:3000/kyc/companies');
+    
+    const compResp = await axios.get(company.client_id ?
+      `http://localhost:3000/kyc/companies?client_id=${company.client_id}` :
+      'http://localhost:3000/kyc/companies');
     const allCompanies = compResp.data.companies || [];
     console.log("Shareholders:", company.shareholders);
     for (const shEntry of company.shareholders || []) {
@@ -967,7 +1124,15 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
         
         idTypeInfo = individual.id_types ? 
           getValueAndSource(individual.id_types) : 
-          { value: idType, source: "Inferred from nationality", documentId: nationalityInfo.documentId, sourceJson: JSON.stringify({source: "Inferred from nationality", documentId: nationalityInfo.documentId}) };
+          { 
+            value: idType, 
+            source: "Inferred from nationality", 
+            documentId: nationalityInfo.documentId, 
+            sourceJson: JSON.stringify({
+              source: "Inferred from nationality", 
+              documentId: nationalityInfo.documentId
+            }) 
+          };
         const isLocal = nationalityInfo.value?.toLowerCase().includes('singapore');
         const hasNRIC = checkDocumentTypeExists(individual.id_numbers, ['nric']);
         const hasPassport = checkDocumentTypeExists(individual.id_numbers, ['passport']);
@@ -988,6 +1153,7 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
         // Store individual shareholder in the shareholders table with field sources
         try {
           await axios.post('http://localhost:3000/kyc/shareholders', {
+            client_id: company.client_id,
             company_name: company.company_name,
             shareholder_name: parsedName,
             shares_owned: sharesInfo.value,
@@ -1025,6 +1191,7 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
           // Store minimal data about this unknown corporate shareholder
           try {
             await axios.post('http://localhost:3000/kyc/shareholders', {
+              client_id: company.client_id,
               company_name: company.company_name,
               shareholder_name: parsedName,
               shares_owned: sharePctStr,
@@ -1075,6 +1242,7 @@ async function processShareholdersForCompany(company: CompanyRecord): Promise<vo
         // Store corporate shareholder in the shareholders table with field sources
         try {
           await axios.post('http://localhost:3000/kyc/shareholders', {
+            client_id: company.client_id,
             company_name: company.company_name,
             shareholder_name: parsedName,
             shares_owned: sharesInfo.value,

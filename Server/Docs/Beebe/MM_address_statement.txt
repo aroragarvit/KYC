@@ -1,0 +1,44 @@
+# ABA BANK | NATIONAL BANK OF CANADA GROUP
+
+# ACCOUNT STATEMENT
+For period: Jan 01, 2021 - Jan 20, 2021
+
+## ACCOUNT DETAILS
+
+| | |
+| ------------------- | -------------------- |
+| Account Holder Name | MCKAY MICHEAL ANDREW |
+| Account Type | Savings |
+| Account Number | 002346322 |
+| Account Currency | USD |
+| Bank SWIFT Code | ABAAKHPP |
+
+MCKAY MICHEAL ANDREW
+No 38 Street 426,Phum1,Toul Tompung2,
+Chamkar Mon,Phnom Penh
+
+## ACCOUNT SUMMARY
+
+| | |
+| --------------- | ------------ |
+| Opening Balance | 1,500.00 USD |
+| Total Money In | + 0.09 USD |
+| Total Money Out | - 500.09 USD |
+| Ending Balance | 1,000.00 USD |
+
+## ACCOUNT ACTIVITY
+
+| Date | Transaction Details | Money In | Money Out | Balance |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------- | ------------ |
+| Jan 01, 2021 | DEP Interest PMNT or CAPT(ACCR DE1)Date 31-DEC-20 Time 01-JAN-21 01:17:38.561810 AM Amount .09 USD | 0.09 USD | | 1,500.09 USD |
+| Jan 05, 2021 | FUNDS TRANSFERRED TO TRY CHANDY 070253580 ORIGINAL AMOUNT 122.25 USD REF# 100FT30213531250 ON Jan 05, 2021 05:51 PM REMARK: NONUNICODE-Electricity | | 122.25 USD | 1,377.84 USD |
+| Jan 06, 2021 | FUNDS TRANSFERRED TO MCKAY MICHEAL ANDREW 000238002 ORIGINAL AMOUNT 377.84 USD REF# 100FT30214041984 ON Jan 06, 2021 03:22 PM REMARK: NONUNICODE- | | 377.84 USD | 1,000.00 USD |
+
+Ending Balance | | | | 1,000.00 USD
+Total | 0.09 USD | 500.09 USD
+
+The Ending Balance does not reflect any pending withdrawals or holds on deposited funds that may have been outstanding on your account when your transactions posted.
+
+DISCLAIMER: This document is for informational purpose only and cannot be used as an official proof of financial statement unless affirmed by the bank representative with seal and signature. Advanced Bank of Asia Ltd. does not guarantee that this information is error-free or omission-free, and customer is required to contact the bank shall any content verification be required. Advanced Bank of Asia Ltd. is not responsible for any losses or damages whether direct or indirect, which may arise from use of this information [document].
+
+Advanced Bank of Asia Ltd. | +855 23 225 333 | info@ababank.com | Page: 1/1

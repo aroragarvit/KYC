@@ -1,5 +1,6 @@
 const path = require("path");
 const fs = require("fs").promises;
+const { existsSync } = require("fs");
 const mammoth = require("mammoth");
 
 async function kycRoutes(fastify, options) {
@@ -100,7 +101,7 @@ async function kycRoutes(fastify, options) {
       if (!individual.full_name) {
         return reply.code(400).send({ error: "Full name is required" });
       }
-      
+
       if (!individual.client_id) {
         return reply.code(400).send({ error: "Client ID is required" });
       }
@@ -304,7 +305,7 @@ async function kycRoutes(fastify, options) {
       if (!company.company_name) {
         return reply.code(400).send({ error: "Company name is required" });
       }
-      
+
       if (!company.client_id) {
         return reply.code(400).send({ error: "Client ID is required" });
       }
@@ -474,7 +475,7 @@ async function kycRoutes(fastify, options) {
         
         // The document should already be stored in the client's document folder
         // Verify the file exists
-        if (!fs.existsSync(document.file_path)) {
+        if (!existsSync(document.file_path)) {
           // If not found at original path, try constructing the path
           const clientFolder = `${client.name}_${document.client_id}`;
           const fullFilePath = path.join(
@@ -484,7 +485,7 @@ async function kycRoutes(fastify, options) {
             path.basename(document.file_path)
           );
           
-          if (!fs.existsSync(fullFilePath)) {
+          if (!existsSync(fullFilePath)) {
             return reply.code(404).send({ 
               error: "Document file not found", 
               file_path: document.file_path,
@@ -616,27 +617,14 @@ async function kycRoutes(fastify, options) {
         .get(...params).count;
 
       // Get individuals with discrepancies
-      let discParams = client_id ? [client_id] : [];
       const individualsWithDiscrepancies = fastify.kycDb
         .prepare(individualsDiscrepanciesQuery)
-        .get(...discParams).count;
+        .get(...params).count;
 
       // Get companies with discrepancies
       const companiesWithDiscrepancies = fastify.kycDb
         .prepare(companiesDiscrepanciesQuery)
-        .get(...discParams).count;
-
-      // Get client name if client_id is provided
-      let clientName = null;
-      if (client_id) {
-        const client = fastify.kycDb
-          .prepare("SELECT name FROM clients WHERE id = ?")
-          .get(client_id);
-          
-        if (client) {
-          clientName = client.name;
-        }
-      }
+        .get(...params).count;
 
       return {
         summary: {
@@ -645,8 +633,7 @@ async function kycRoutes(fastify, options) {
           total_documents: documentsCount,
           individuals_with_discrepancies: individualsWithDiscrepancies,
           companies_with_discrepancies: companiesWithDiscrepancies,
-          client_id: client_id ? parseInt(client_id) : null,
-          client_name: clientName
+          client_id: client_id,
         },
       };
     } catch (err) {
@@ -891,7 +878,7 @@ async function kycRoutes(fastify, options) {
         directorsQuery += " AND client_id = ?";
         directorsParams.push(client_id);
       }
-      
+
       const directors = fastify.kycDb
         .prepare(directorsQuery)
         .all(...directorsParams);
@@ -1243,7 +1230,7 @@ async function kycRoutes(fastify, options) {
           shareholdersQuery += " AND client_id = ?";
           shareholdersParams.push(client_id);
         }
-        
+
         const shareholders = fastify.kycDb
           .prepare(shareholdersQuery)
           .all(...shareholdersParams);
@@ -1749,8 +1736,8 @@ async function kycRoutes(fastify, options) {
       const newFolderPath = path.join("db/folders", newFolderName);
       
       try {
-        if (fs.existsSync(oldFolderPath)) {
-          fs.renameSync(oldFolderPath, newFolderPath);
+        if (existsSync(oldFolderPath)) {
+          await fs.rename(oldFolderPath, newFolderPath);
           
           // Update file paths in database
           fastify.kycDb.prepare(`
