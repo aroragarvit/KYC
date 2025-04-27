@@ -1,98 +1,125 @@
-# KYC Agent - Document Processing API
+# KYC Agent Server
 
-This server provides an API for reading, parsing, and extracting director information from company documents for KYC (Know Your Customer) processes.
+A robust server implementation for Know Your Customer (KYC) processes, designed to extract, store, and retrieve company and individual information from KYC documents.
 
 ## Features
 
-- Upload and manage company documents
-- Parse document content using mammoth.js for DOCX files
-- Extract director information using an AI agent
-- Identify and track data discrepancies between documents
-- Store director information with source tracking
+- Document management and analysis for KYC compliance
+- Individual and company data extraction and storage
+- Relationship tracking between directors and shareholders
+- Discrepancy detection across multiple documents
+- RESTful API for data retrieval and management
+- Message-based client interaction
 
-## Setup
+## System Requirements
 
-1. Install dependencies:
+- Node.js 14.x or higher
+- npm 6.x or higher
+
+## Installation
+
+1. Clone the repository
+2. Navigate to the Server directory:
+   ```bash
+   cd KYC_Agent/Server
    ```
+3. Install dependencies:
+   ```bash
    npm install
    ```
 
-2. Initialize the database:
-   ```
-   npm run init-db
-   ```
+## Database Initialization
 
-3. Start the server:
-   ```
-   npm start
-   ```
-
-   Or for development with auto-restart:
-   ```
-   npm run dev
-   ```
-
-## API Endpoints
-
-### Document Management
-
-- `GET /companies/:name/documents` - Get all documents for a company
-- `GET /documents/:id` - Get document information by ID
-- `GET /documents/read?id=:documentId` - Read the content of a document by its ID
-- `GET /documents/read?name=:documentName` - Read the content of a document by its name
-- `GET /documents` - List all available documents
-
-### Director Information
-
-- `GET /companies/:name/directors` - Get all directors for a company
-- `POST /companies/:name/directors` - Save director information for a company
-
-### Workflow
-
-- `POST /run-workflow` - Run the director extraction workflow for a company
-
-## Director Extraction Workflow
-
-The system includes an AI-powered workflow that:
-
-1. Fetches all documents for a specified company
-2. Reads the content of each document
-3. Uses an AI agent to extract director information:
-   - Full Name
-   - ID Number
-   - ID Type
-   - Nationality
-   - Residential Address
-   - Telephone Number
-   - Email Address
-4. For each piece of information, it tracks the source document
-5. Identifies discrepancies between information found in different documents
-6. Saves the extracted information to the database
-
-## Example: Running the Workflow
+The system uses SQLite for data storage. To initialize the database:
 
 ```bash
-curl -X POST http://localhost:3000/run-workflow \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Truffles"}'
+npm run init-kyc-db
 ```
 
-This will process all documents for the "Truffles" company, extract director information, and save it to the database.
+This command runs the `src/db/kyc_init.js` script which:
+1. Creates the database at `kyc_data.db`
+2. Sets up all required tables (individuals, companies, document_sources, directors, shareholders, clients, messages)
+3. Creates appropriate indexes for optimized queries
+4. Scans the `Docs` directory for client folders and processes any documents found within
+
+## Project Structure
+
+```
+Server/
+├── Docs/                # Client documents for processing
+│   ├── {ClientName1}/   # Documents for specific client
+│   └── {ClientName2}/   # Documents for another client
+├── db/                  # Database related files and folders
+├── node_modules/        # Node.js dependencies
+├── src/                 # Source code
+│   ├── app.js           # Fastify application setup
+│   ├── db/              # Database scripts
+│   │   ├── kyc_init.js  # Database initialization script
+│   │   └── reset_messages.js # Utility to reset message tables
+│   └── routes/          # API routes
+│       ├── kyc_routes.js # KYC data endpoints
+│       └── messages.js   # Client messaging endpoints
+├── .gitignore           # Git ignore rules
+├── kyc_data.db          # SQLite database
+├── package.json         # Dependencies and scripts
+├── package-lock.json    # Lock file for dependencies
+├── README.md            # This documentation
+└── server.js            # Server entry point
+```
+
+## Running the Server
+
+### Development Mode
+
+```bash
+npm run dev
+```
+
+This starts the server using nodemon, which automatically restarts when files change.
+
+### Production Mode
+
+```bash
+npm start
+```
+
+This starts the server in production mode.
+
+By default, the server runs on `http://0.0.0.0:3000`.
+
+
+### Messaging Endpoints
+
+- `GET /messages` - Fetch messages for a client
+- `POST /messages` - Create a new message
+- `POST /agent-generate` - Generate an agent response to a message
+
+
+
+1. Create a new folder in the `Docs` directory with the client name
+2. Place the client's KYC documents in this folder
+3. Run the database initialization script:
+   ```bash
+   npm run init-kyc-db
+   ```
 
 ## Database Schema
 
-The system uses SQLite with the following tables:
+The system uses several database tables:
 
-- `companies` - Company information
-- `documents` - Document metadata (name, file path)
-- `company_documents` - Many-to-many relationship between companies and documents
-- `directors` - Extracted director information with source tracking
+- `clients` - Client information
+- `individuals` - Individual persons' details from KYC documents
+- `companies` - Company details from KYC documents
+- `document_sources` - Document metadata and content
+- `directors` - Director information with source tracking
+- `shareholders` - Shareholder information with source tracking
+- `messages` - Client-agent message history
 
-## Technologies
+## Technology Stack
 
-- Fastify - Web server
-- Better-SQLite3 - Database
-- Mammoth.js - DOCX parsing
-- Google Generative AI - AI processing
-- Mastra - Workflow framework
-- Zod - Schema validation 
+- **Fastify**: High-performance web framework
+- **better-sqlite3**: SQLite database driver
+- **mammoth**: DOCX file parsing
+- **fastify-plugin**: Plugin system for Fastify
+- **nodemon**: Development auto-restart tool
+

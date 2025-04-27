@@ -37,8 +37,12 @@ export const useSendMessage = () => {
       return response.data;
     },
     onSuccess: (data, variables) => {
-      // Invalidate and refetch messages for this client
+      // Invalidate and refetch messages for this client immediately
       queryClient.invalidateQueries({ queryKey: ['messages', variables.client_id] });
+      // Optionally, you can add immediate data update with setQueryData
+      queryClient.setQueryData(['messages', variables.client_id], (oldData: Message[] | undefined) => {
+        return oldData ? [...oldData, data] : [data];
+      });
     },
   });
 };
@@ -58,11 +62,14 @@ export const useAgentInteraction = () => {
       threadId: string;
     }) => {
       // First save the user message to the database
-      await axios.post<Message>(`${API_URL}/messages`, {
+      const userMessageResponse = await axios.post<Message>(`${API_URL}/messages`, {
         client_id: clientId,
         message: message,
         message_type: 'user',
       });
+      
+      // Immediately invalidate messages to show user message
+      queryClient.invalidateQueries({ queryKey: ['messages', clientId] });
       
       // Then get agent response
       const response = await axios.post<{ response: string }>(`${API_URL}/agent-generate`, {
@@ -72,16 +79,19 @@ export const useAgentInteraction = () => {
       });
       
       // Save the agent response to the database
-      await axios.post<Message>(`${API_URL}/messages`, {
+      const agentMessageResponse = await axios.post<Message>(`${API_URL}/messages`, {
         client_id: clientId,
         message: response.data.response,
         message_type: 'agent',
       });
       
+      // Invalidate again after agent response is saved
+      queryClient.invalidateQueries({ queryKey: ['messages', clientId] });
+      
       return response.data;
     },
     onSuccess: (_, variables) => {
-      // Invalidate and refetch messages for this client
+      // Final invalidation to ensure everything is up to date
       queryClient.invalidateQueries({ queryKey: ['messages', variables.clientId] });
     },
   });
