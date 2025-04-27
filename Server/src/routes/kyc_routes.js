@@ -47,6 +47,92 @@ async function kycRoutes(fastify, options) {
     }
   });
 
+  // Search individuals by partial name
+  fastify.get("/kyc/individuals/search", async (request, reply) => {
+    try {
+      const { partial_name, client_id } = request.query;
+      
+      if (!partial_name) {
+        return reply.code(400).send({ error: "Partial name is required" });
+      }
+      
+      if (!client_id) {
+        return reply.code(400).send({ error: "Client ID is required" });
+      }
+      
+      // Use LIKE for partial name search
+      const query = "SELECT * FROM individuals WHERE full_name LIKE ? AND client_id = ?";
+      const individuals = fastify.kycDb
+        .prepare(query)
+        .all(`%${partial_name}%`, client_id);
+
+      // Process to convert JSON strings to objects
+      const processedIndividuals = individuals.map((individual) => {
+        return {
+          ...individual,
+          alternative_names: JSON.parse(individual.alternative_names || "[]"),
+          id_numbers: JSON.parse(individual.id_numbers || "{}"),
+          id_types: JSON.parse(individual.id_types || "{}"),
+          nationalities: JSON.parse(individual.nationalities || "{}"),
+          addresses: JSON.parse(individual.addresses || "{}"),
+          emails: JSON.parse(individual.emails || "{}"),
+          phones: JSON.parse(individual.phones || "{}"),
+          roles: JSON.parse(individual.roles || "{}"),
+          shares_owned: JSON.parse(individual.shares_owned || "{}"),
+          price_per_share: JSON.parse(individual.price_per_share || "{}"),
+          discrepancies: JSON.parse(individual.discrepancies || "[]"),
+        };
+      });
+
+      // Also check alternative_names (requires post-processing since it's JSON)
+      const allIndividuals = fastify.kycDb
+        .prepare("SELECT * FROM individuals WHERE client_id = ?")
+        .all(client_id);
+      
+      const alternativeNameMatches = allIndividuals.filter(person => {
+        if (!person.alternative_names) return false;
+        try {
+          const altNames = JSON.parse(person.alternative_names);
+          return Array.isArray(altNames) && altNames.some(name => 
+            name.toLowerCase().includes(partial_name.toLowerCase())
+          );
+        } catch (e) {
+          return false;
+        }
+      });
+      
+      // Process alternativeNameMatches and add to results if not already included
+      const existingIds = new Set(processedIndividuals.map(p => p.id));
+      
+      for (const person of alternativeNameMatches) {
+        if (!existingIds.has(person.id)) {
+          processedIndividuals.push({
+            ...person,
+            alternative_names: JSON.parse(person.alternative_names || "[]"),
+            id_numbers: JSON.parse(person.id_numbers || "{}"),
+            id_types: JSON.parse(person.id_types || "{}"),
+            nationalities: JSON.parse(person.nationalities || "{}"),
+            addresses: JSON.parse(person.addresses || "{}"),
+            emails: JSON.parse(person.emails || "{}"),
+            phones: JSON.parse(person.phones || "{}"),
+            roles: JSON.parse(person.roles || "{}"),
+            shares_owned: JSON.parse(person.shares_owned || "{}"),
+            price_per_share: JSON.parse(person.price_per_share || "{}"),
+            discrepancies: JSON.parse(person.discrepancies || "[]"),
+          });
+        }
+      }
+
+      return { individuals: processedIndividuals };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({
+        error: "Internal Server Error",
+        message: err.message,
+      });
+    }
+  });
+
   // Get specific individual by ID
   fastify.get("/kyc/individuals/:id", async (request, reply) => {
     try {
@@ -226,6 +312,51 @@ async function kycRoutes(fastify, options) {
       }
       
       const companies = fastify.kycDb.prepare(query).all(...params);
+
+      // Process to convert JSON strings to objects
+      const processedCompanies = companies.map((company) => {
+        return {
+          ...company,
+          registration_number: JSON.parse(company.registration_number || "{}"),
+          jurisdiction: JSON.parse(company.jurisdiction || "{}"),
+          address: JSON.parse(company.address || "{}"),
+          directors: JSON.parse(company.directors || "[]"),
+          shareholders: JSON.parse(company.shareholders || "[]"),
+          company_activities: JSON.parse(company.company_activities || "{}"),
+          shares_issued: JSON.parse(company.shares_issued || "{}"),
+          price_per_share: JSON.parse(company.price_per_share || "{}"),
+          discrepancies: JSON.parse(company.discrepancies || "[]"),
+        };
+      });
+
+      return { companies: processedCompanies };
+    } catch (err) {
+      request.log.error(err);
+      reply.code(500).send({
+        error: "Internal Server Error",
+        message: err.message,
+      });
+    }
+  });
+
+  // Search companies by partial name
+  fastify.get("/kyc/companies/search", async (request, reply) => {
+    try {
+      const { partial_name, client_id } = request.query;
+      
+      if (!partial_name) {
+        return reply.code(400).send({ error: "Partial name is required" });
+      }
+      
+      if (!client_id) {
+        return reply.code(400).send({ error: "Client ID is required" });
+      }
+      
+      // Use LIKE for partial name search
+      const query = "SELECT * FROM companies WHERE company_name LIKE ? AND client_id = ?";
+      const companies = fastify.kycDb
+        .prepare(query)
+        .all(`%${partial_name}%`, client_id);
 
       // Process to convert JSON strings to objects
       const processedCompanies = companies.map((company) => {
