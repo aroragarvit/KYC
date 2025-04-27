@@ -1,54 +1,108 @@
-# React + TypeScript + Vite
+# KYC Verifier Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, responsive user interface for the KYC Verifier system, providing comprehensive tools for KYC document management and compliance analysis.
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+The KYC Verifier Frontend is a React-based web application that serves as the user interface for the KYC Verifier system. It provides compliance officers and financial institutions with a powerful dashboard to manage, visualize, and analyze KYC (Know Your Customer) data processed by the backend system.
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **Interactive Dashboard**: Data visualization and key metrics overview
+- **Document Management**: Upload, categorize, and manage KYC documents
+- **Client Management**: Organize and track client information and status
+- **Company Profiles**: Detailed views of company information, directors, and shareholders
+- **Compliance Analytics**: Visual reports and insights into KYC compliance status
+- **Responsive Design**: Fully responsive interface that works on desktop and mobile devices
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+## Technology Stack
+
+- **Framework**: React 19 with TypeScript
+- **Routing**: React Router v7
+- **State Management**: React Query for server state
+- **UI Components**: Radix UI primitives with Tailwind CSS
+- **Data Visualization**: Recharts
+- **Build Tool**: Vite
+- **API Communication**: Axios
+
+## Folder Structure
+
+```
+src/
+├── assets/           # Static assets like images and icons
+├── components/       # Reusable UI components
+│   ├── layout/       # Layout components like sidebar, header, etc.
+│   └── ui/           # UI primitive components and form elements
+├── hooks/            # Custom React hooks
+├── lib/              # Utility functions and shared code
+├── pages/            # Page components for each route
+│   ├── dashboard.tsx
+│   ├── documents.tsx
+│   ├── clients.tsx
+│   ├── client-companies.tsx
+│   ├── company-details.tsx
+│   └── analytics.tsx
+├── queries/          # React Query definitions for API requests
+└── main.tsx          # Application entry point
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Getting Started
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Prerequisites
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+- Node.js (v18+)
+- NPM or Yarn
+- KYC Verifier Backend running
+
+### Installation
+
+1. Clone the repository
+2. Install dependencies:
+   ```
+   npm install
+   ```
+3. Set up environment variables:
+   - Copy `.env.example` to `.env` (if not present)
+   - Configure the backend API URL: `VITE_API_URL=http://localhost:3000`
+
+### Development
+
+Run the development server:
+
 ```
+npm run dev
+```
+
+This will start the application in development mode at `http://localhost:5173`.
+
+### Building for Production
+
+```
+npm run build
+```
+
+The build artifacts will be stored in the `dist/` directory.
+
+## Usage
+
+1. **Dashboard**: View overall KYC metrics and pending tasks
+2. **Documents**: Upload and manage KYC documents
+3. **Clients**: View and manage client profiles
+4. **Company Details**: Access detailed company information, including directors and shareholders
+5. **Analytics**: Generate reports and visualize compliance data
+
+## Integration with Backend
+
+The frontend communicates with the KYC Verifier backend API using React Query for efficient data fetching and caching. All API requests are defined in the `queries/` directory, making it easy to maintain and update API integration points.
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## Contact
+
+For questions or support, please create an issue in this repository or email at agarvit1142000@gmail.com
